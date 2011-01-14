@@ -1,0 +1,305 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><title></title>
+	<style type="text/css">
+		pre, #cout .error {
+			font-family: Consolas,Courier New,NSimSun,SimSun,monospace;
+		}
+		h1 {
+			font-family: Arial,NSimSun,sans-serif;
+		}
+		#input {
+			width: 100%;
+			display: block;
+			padding: 4px;
+			border: 1px solid #ddd;
+			line-height: 1.2em;
+			height: 2.4em;
+			min-height: 3.2em;
+			max-height: 26em;
+			margin-top: 1.5em;
+			box-sizing: border-box;
+			-ms-box-sizing: border-box;
+			-moz-box-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			-o-box-sizing: border-box;
+			overflow: auto;
+			border-radius: 4px;
+		}
+		#input:focus {
+			outline: none;
+			border-color: rgba(51,153,255,0.75);
+			box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
+			-webkit-box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
+			-moz-box-shadow: rgba(51,153, 255, 0.15) 0 0 12px;
+		}
+		#cout pre{
+			font-size: 1em;
+			border-left: 2px solid #39f;
+			padding: 4px 5px;
+			margin: 2px 0;
+		}
+		#cout .error{
+			font-size: 1em;
+			white-space: pre;
+			color: red;
+		}
+		#cout .info {
+			white-space: pre;
+			font-size: smaller;
+			color: #999;
+			padding:2px 5px;
+			border-left:2px solid #f7f7f7;
+			margin: 2px 0;
+		}
+		#cout .info.product,
+		#cout .info.man {
+			font-size: 1em;
+			color: black;
+		}
+		#cout .info.product {
+			font-size: 2em;
+		}
+		#cout .info.man {
+			color: #039;
+		}
+		#cout .info.brk {
+			border-left-color: transparent;
+			text-align: right;
+			color: #ddd;
+		}
+		body {
+			max-width: 720px;
+			margin: auto;
+		}
+		#go {display: none}
+	</style>
+</head>
+<body id="body">
+	<noscript>The Lofn cannot be enabled because JavaScript is disabled.</noscript>
+	<div id="cout"></div>
+	<textarea id="input"></textarea>
+	<button id="go">Start script</button>
+
+	<script type="text/javascript">
+//<![CDATA[
+		var output = {
+			last : null,
+	  		trace: function (x) {
+				var s = '';
+				for (var i = 0; i < arguments.length; i++) s += arguments[i];
+				output.last.appendChild(document.createTextNode(s));
+				bottom();
+				return arguments[arguments.length - 1];
+			},
+			tracel: function(){
+				var v = output.trace.apply(this, arguments);
+				output.trace('\n');
+				bottom();
+				return v;
+			}
+		}
+		var tinfo = function(s, k){
+			var e = document.createElement('div');
+			e.className = (k || '') + ' info';
+			e.appendChild(document.createTextNode(s));
+			$('cout').appendChild(e);
+			e = null;
+			bottom();
+		}
+		var terr = function(e){
+			var d = document.createElement('div');
+			d.className = 'error';
+			d.appendChild(document.createTextNode(e));
+			$('cout').appendChild(d);
+			d = null;
+		}
+		var bottom = function(){
+			$('body').scrollTop = $('body').scrollHeight;
+		}
+function insertAtCursor(obj, txt) {
+  obj.focus();
+  //IE support
+  if (document.selection) {
+    sel = document.selection.createRange();
+    sel.text = txt;
+  }
+  //MOZILLA/NETSCAPE support
+  else {
+    var startPos = obj.selectionStart;
+    var scrollTop = obj.scrollTop;
+    var endPos = obj.selectionEnd;
+    obj.value = obj.value.substring(0, startPos) + txt + obj.value.substring(endPos, obj.value.length);
+    startPos += txt.length;
+    obj.setSelectionRange(startPos, startPos);
+    obj.scrollTop = scrollTop;
+  }
+}
+function getCaretPos(ctrl) {
+	var caretPos = 0;
+	if (ctrl.selectionStart || ctrl.selectionStart == '0')
+    // Firefox support
+		caretPos = ctrl.selectionStart;
+	else if (document.selection) {
+    // IE Support
+    var range = document.selection.createRange();
+    // We'll use this as a 'dummy'
+    var stored_range = range.duplicate();
+    // Select all text
+    stored_range.moveToElementText( ctrl );
+    // Now move 'dummy' end point to end point of original range
+    stored_range.setEndPoint( 'EndToEnd', range );
+    // Now we can calculate start and end points
+    ctrl.selectionStart = stored_range.text.length - range.text.length;
+    ctrl.selectionEnd = ctrl.selectionStart + range.text.length;
+    caretPos = ctrl.selectionStart;
+	}
+	return (caretPos);
+}
+
+function getCurrentLineBlanks(obj) {
+  var pos = getCaretPos(obj);
+  var str = obj.value;
+  var i = pos-1;
+  while (i>=0) {
+    if (str.charAt(i) == '\n')
+      break;
+    i--;
+  }
+  i++;
+  var blanks = "";
+  while (i < str.length) {
+    var c = str.charAt(i);
+    if (c == ' ' || c == '\t')
+      blanks += c;
+    else
+      break;
+    i++;
+  }
+  return blanks;
+}
+
+//]]></script>
+
+	<script src="eisa.rt.js" type="text/javascript"></script>
+	<script src="compiler.rt.js" type="text/javascript"></script>
+	<script src="lfc/lofn.js" type="text/javascript"></script>
+	<script src="compiler.js" type="text/javascript"></script>
+	<script src="lib/stl.js" type="text/javascript"></script>
+	<script src="lib/async.js" type="text/javascript"></script>
+	<script src="lib/stdenum.lf.js" type="text/javascript"></script>
+
+	<script type="text/javascript">
+		var $ = function(e){return document.getElementById(e)}
+		var run = document.getElementById('go').onclick = function () {
+			tinfo('Job started: ' + new Date().toLocaleString(), 'brk');
+			// start VM
+			try {
+				var pre = document.createElement('pre');
+				pre.className = 'output';
+
+
+				var trace = function (x) {
+					var s = '';
+					for (var i = 0; i < arguments.length; i++) s += arguments[i];
+					pre.appendChild(document.createTextNode(s));
+					bottom();
+					return arguments[arguments.length - 1];
+				}, tracel= function(){
+					var v = trace.apply(this, arguments);
+					trace('\n');
+					bottom();
+					return v;
+				}
+
+				var demolib = {
+					alert: alert,
+					exports: {},
+					setTimeout: setTimeout
+				}
+				var stdio = {
+					trace: trace,
+					tracel: tracel,
+					stdout: { shiftIn: trace }
+				}
+				stdio.stdio = stdio;
+				var script = new eisa.Script(
+					document.getElementById('input').value, // source
+					eisa.languages.lofn,						// language
+					null, // Default Transforming schemata
+					[
+						eisa.dev.lib.fromObject(demolib),
+						eisa.dev.lib.fromObject(stdio),
+						eisa.libmod.acquire('mod'),
+						eisa.libmod.acquire('enum'),
+						eisa.libmod.acquire('async')
+					] // libraries
+				);
+
+
+				script.asyncCompile(function(cm){
+					try {
+						tinfo('[LFC]\tDone compilation. Starting script...');
+						var starttime = new Date();
+						$('cout').appendChild(pre);
+						script.start();
+						tinfo('Completed in ' + (new Date() - starttime) + 'ms.');
+					} catch (e) {
+						terr(e)
+					}
+				}, function(t,i,b){});
+			} catch (e) {
+				terr(e)
+			}
+			setTimeout(function(){$('input').focus();bottom();});
+		};
+		var resizeInput = function(){
+			$('input').style.height = ($('input').scrollHeight + 2) + 'px';
+		}
+		var last_blanks = '';
+		var exec = false;
+		$('input').addEventListener('keydown', function(e){
+			if(e.shiftKey && (e.key === 'Enter' || e.keyCode === 13)){
+				e.preventDefault();exec = true;
+				return setTimeout(function(){run();},0);
+			} else if(e.ctrlKey && (e.key === 'Enter' || e.keyCode === 13)){
+				e.preventDefault();exec = true;
+				return setTimeout(function(){
+					run();
+					$('input').value = '';
+					resizeInput();
+				},0);
+			} else if(e.key === 'Enter' || e.keyCode === 13){
+				last_blanks = getCurrentLineBlanks($('input'));
+			} else if(e.key === 'Tab' || e.keyCode === 9){
+				e.preventDefault();
+				insertAtCursor($('input'), '    ');
+			}
+		}, false);
+		$('input').addEventListener('keyup',function(){
+			var len = 0;
+			return function(e){
+				var l = $('input').value.length;
+				if(l <= len)
+					$('input').style.height = 0;
+				len = l;
+				if(e.key === 'Enter' || e.keyCode === 13){
+					if(!exec) insertAtCursor($('input'), last_blanks);
+					exec = false;
+				}
+				resizeInput();
+				bottom();
+			}
+		}(), false)
+		window.onload = function(){
+			tinfo('LFI: lofn interactive', 'product');
+			tinfo('ver. Houjuu @ web.\tAmor ex Dessis.', 'ver');
+			tinfo('Type code and press <Shift-Enter>.', 'man');
+			$('input').focus();
+		}
+	</script>
+
+</body>
+</html>
