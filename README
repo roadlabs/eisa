@@ -4,8 +4,26 @@ Something like DLR/Parrot, on the web (...)
 
 Written in JS (and also compiled into JS)
 
-WIP.
+Still work in progress.
 
+**DO NOT USE IN KEY PROJECTS UNTIL THIS LINE DISAPPEARED**
 
+Files
+-----------------
+eisa/
+|~lfc/
+|	`-lofn.js     --  Lofn Parser (source -> Eisa AST)
+|~lib/            --  Libraries
+|	|-async.js    --  Asynchronous library using obstructiveness primitives
+|	|-stdenum.lf  --  Standard enumerator library using obstructiveness primitives
+|	`-stl.js      --  Eisa Standard Libarary
+|+shell.wscript/  --  WSH-related shell.
+|-compiler.js     --  Eisa compier (Eisa AST -> JS code)
+|-compiler.rt.js  --  Eisa Compiler Runtime
+`-eisa.rt.js      --  Eisa Runtime
 
-Original project Lofn terminated.
+Maybe I should make it CommonJS-compatible...
+
+Lofn?
+-----------------
+It is included in this project now. Ergo the original Lofn terminated.
