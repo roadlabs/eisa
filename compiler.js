@@ -174,7 +174,7 @@
 			// processing pipelined invocations
 			env.grDepth += 1;
 			skip = 1;
-			ScopedScript.useTemp(env, 'PIPE', env.grDepth);
+			ScopedScript.useTemp(env, 'PIPE' + env.grDepth);
 			pipe = C_TEMP('PIPE' + env.grDepth) + '=' + transform(this.args[0])
 			skips = [C_TEMP('PIPE' + env.grDepth)];
 		}
@@ -379,7 +379,7 @@
 		return 'while(' + transform(this.condition) + '){' + transform(this.body) + '}';
 	});
 	schemata(nt.FORIN, function (nd, e) {
-		ScopedScript.useTemp(e, 'ENUMERATOR', this.no);
+		ScopedScript.useTemp(e, 'ENUMERATOR' + this.no);
 		ScopedScript.useTemp(e, 'YV');
 		ScopedScript.useTemp(e, 'YVC');
 		var s_enum = '';
@@ -463,6 +463,21 @@
 	var compileCoroid;
 
 	0, function(){
+		var listTemp = function(scope){
+			var l = []
+			for(var each in scope.usedTemps)
+				if(scope.usedTemps[each] === 1)
+					l.push(each);
+			return l;
+		};
+		var listParTemp = function(scope){
+			var l = []
+			for(var each in scope.usedTemps)
+				if(scope.usedTemps[each] === 2)
+					l.push(each);
+			return l;
+		};
+
 		var env, g_envs;
 		transform = function (node, aux) {
 			if (vmSchemata[node.type]) {
@@ -480,7 +495,7 @@
 			s = transform(tree.code);
 			var locals = EISA_UNIQ(tree.locals),
 				vars = [],
-				temps = ScopedScript.listTemp(tree);
+				temps = listTemp(tree);
 
 			for (var i = 0; i < locals.length; i++)
 				if (!(tree.varIsArg[locals[i]])){
@@ -502,7 +517,7 @@
 					s.replace(/^    /gm, ''),
 					hook_exit || '']);
 
-			var pars = tree.parameters.names.slice(0), temppars = ScopedScript.listParTemp(tree);
+			var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
 			for (var i = 0; i < pars.length; i++)
 				pars[i] = C_NAME(pars[i])
 			for (var i = 0; i < temppars.length; i++)
@@ -587,7 +602,7 @@
 			};
 			var obstPartID = function(n){
 				return function(){
-					ScopedScript.useTemp(env, 'OBSTR', ++n);
+					ScopedScript.useTemp(env, 'OBSTR' + (++n));
 					return C_TEMP('OBSTR' + n);
 				}
 			}(0);
@@ -957,7 +972,7 @@
 				return '';
 			};
 			cSchemata[nt.FORIN] = function(node, env){
-				ScopedScript.useTemp(env, 'ENUMERATOR', this.no);
+				ScopedScript.useTemp(env, 'ENUMERATOR' + this.no);
 				ScopedScript.useTemp(env, 'YV');
 				ScopedScript.useTemp(env, 'YVC');
 				var s_enum = '';
@@ -1064,17 +1079,17 @@
 				
 
 			ScopedScript.useTemp(tree, 'PROGRESS');
-			ScopedScript.useTemp(tree, 'SCHEMATA', '', 2);
+			ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
 			ScopedScript.useTemp(tree, 'EOF');
 			ScopedScript.useTemp(tree, 'ISFUN');
 			ScopedScript.useTemp(tree, 'COROFUN');
-			ScopedScript.useTemp(tree, 'FUN', '', 2);
-			ScopedScript.useTemp(tree, 'COEXCEPTION', '', 2);
+			ScopedScript.useTemp(tree, 'FUN', ScopedScript.SPECIALTEMP);
+			ScopedScript.useTemp(tree, 'COEXCEPTION', ScopedScript.SPECIALTEMP);
 
 
 			var locals = EISA_UNIQ(tree.locals),
 				vars = [],
-				temps = ScopedScript.listTemp(tree);
+				temps = listTemp(tree);
 			for (var i = 0; i < locals.length; i++)
 				if (!(tree.varIsArg[locals[i]])){
 					if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
@@ -1085,7 +1100,7 @@
 			for (var i = 0; i < temps.length; i++)
 				temps[i] = BIND_TEMP(tree, temps[i]);
 
-			var pars = tree.parameters.names.slice(0), temppars = ScopedScript.listParTemp(tree);
+			var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
 			for (var i = 0; i < pars.length; i++)
 				pars[i] = C_NAME(pars[i])
 			for (var i = 0; i < temppars.length; i++)

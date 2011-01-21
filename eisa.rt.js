@@ -481,7 +481,8 @@ var EISA_DEBUGTIME = false;
 				a[i] = acquire(arguments[i]);
 			return eisa.squashLibs(a)
 		}
-	}
+	};
+
 	eisa.dev = {
 		lib: {
 			define: define,
@@ -502,9 +503,14 @@ var EISA_DEBUGTIME = false;
 			}
 		},
 		compileTime: false
-	}
+	};
+
 	register(eisa.dev.lib.fromObject(eisa.libmod), 'mod');
 	register(eisa.dev.lib.fromObject(eisa.dev), 'dev');
+
+	eisa.dev.aslib = function(n, o) {
+		return register(eisa.dev.lib.fromObject(o), n)
+	}
 
 	eisa.forLibraries = function(libs){
 		return function(r, fl, compileTime){
@@ -515,6 +521,7 @@ var EISA_DEBUGTIME = false;
 			}
 		}
 	};
+
 	eisa.squashLibs = function(libs){
 		var squashed = {};
 		eisa.forLibraries(libs)(function(v, n){ squashed[n] = v });

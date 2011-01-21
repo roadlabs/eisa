@@ -92,40 +92,14 @@
 		this.coroid = false;
 		this.initHooks = {};
 	};
+
 	ScopedScript.prototype.newVar = function (name, isarg) {
 		return ScopedScript.registerVariable(this, name, isarg);
-	};
-	ScopedScript.prototype.resolveVar = function (name) {
-		if (this.variables[name] >= 0)
-			return this.variables[name];
-		else
-			return this.newVar(name)
 	};
 	ScopedScript.prototype.useVar = function (name, position) {
 		this.usedVariables[name] = true;
 		if(this.usedVariablesOcc[name] === undefined)
 			this.usedVariablesOcc[name] = position;
-	};
-	ScopedScript.listTemp = function(scope){
-		var l = []
-		for(var each in scope.usedTemps)
-			if(scope.usedTemps[each] === 1)
-				l.push(each);
-		return l;
-	};
-	ScopedScript.listParTemp = function(scope){
-		var l = []
-		for(var each in scope.usedTemps)
-			if(scope.usedTemps[each] === 2)
-				l.push(each);
-		return l;
-	};
-	ScopedScript.prototype.generateQueue = function(arr){
-		if(!arr) arr = [];
-		for(var i = 0; i < this.nest.length; i++)
-			this.nest[i].generateQueue(arr);
-		arr.push(this);
-		return arr;
 	};
 	ScopedScript.prototype.ready = function () {
 		if (this.parameters) {
@@ -137,6 +111,9 @@
 	ScopedScript.prototype.cleanup = function(){
 		delete this.sharpNo;
 		delete this.labels;
+		delete this.variables;
+		delete this.usedVariables;
+		delete this.usedVariablesOcc;
 	};
 	
 	ScopedScript.generateQueue = function(scope, trees, arr){
@@ -146,9 +123,17 @@
 		arr.push(scope);
 		return arr;
 	};
-	ScopedScript.useTemp = function(scope, type, id, aspar){
-		scope.usedTemps[type + (id == null ? '' : id)] = (aspar || 0) + 1;
+
+	ScopedScript.useTemp = function(scope, name, processing){
+		// Processing:
+		// 0: As variable
+		// 1: As Parameter
+		// 2: Special
+		scope.usedTemps[name] = (processing || 0) + 1;
 	};
+	ScopedScript.VARIABLETEMP = 0;
+	ScopedScript.PARAMETERTEMP = 1;
+	ScopedScript.SPECIALTEMP = 2;
 	
 	ScopedScript.registerVariable = function(scope, name, argQ, useQ) {
 		if (scope.variables[name] === scope.id) return;
@@ -158,30 +143,6 @@
 			scope.usedVariables[name] = true;
 		}
 		return scope.variables[name] = scope.id;
-	};
-	ScopedScript.generateVariableResolver = function(scope, trees, explicitQ, aux) {
-		for (var each in scope.usedVariables) {
-			if (scope.usedVariables[each] === true) {
-				if(!(scope.variables[each] > 0)){
-					if(!explicitQ) {
-						warn('Undeclared variable "' + each + '" when using `!option explicit`. At: ' +
-							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0);
-						ScopedScript.registerVariable(scope, each);
-						trees[scope.variables[each] - 1].locals.push(each);
-					} else {
-						throw new CompileError(
-							'Undeclared variable "' + each + '" when using `!option explicit`.',
-							(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0,
-							aux.source || ''
-						)
-					}
-				} else {
-					trees[scope.variables[each] - 1].locals.push(each);
-				}
-			}
-		};
-		for (var i = 0; i < scope.nest.length; i++)
-			ScopedScript.generateVariableResolver(trees[scope.nest[i]], trees, explicitQ, aux);
 	};
 
 	eisa.walkNode = function(node, f, aux){

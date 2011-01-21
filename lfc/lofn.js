@@ -355,7 +355,7 @@ eisa.languages.lofn = lofn;
 						if(!explicitQ) {
 							eisa.log(PW('Undeclared variable "' + each + '"' ,
 								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
-							ScopedScript.registerVariable(scope, each);
+							scope.newVar(each);
 							trees[scope.variables[each] - 1].locals.push(each);
 						} else {
 							throw PE(
@@ -370,6 +370,9 @@ eisa.languages.lofn = lofn;
 			};
 			for (var i = 0; i < scope.nest.length; i++)
 				resolveVariables(trees[scope.nest[i]], trees, explicitQ, aux);
+
+			// minimalize AST size
+			scope.cleanup();
 		}
 
 		var ensure = function(c, m, p){
@@ -892,7 +895,7 @@ eisa.languages.lofn = lofn;
 						var s = workingScope;
 						while(s && s.rebindThis) s = scopes[s.upper - 1];
 						if(s.sharpNo++ >= s.parameters.names.length)
-							ScopedScript.useTemp(s, 'IARG', s.sharpNo, 1);
+							ScopedScript.useTemp(s, 'IARG' + s.sharpNo, ScopedScript.PARAMETERTEMP);
 						return new Node(nt.SHARP, {
 							id :  s.sharpNo
 						});
@@ -1673,7 +1676,7 @@ eisa.languages.lofn = lofn;
 		ws.thisOccurs = true;
 		
 		initInterator(function(v, n){
-			ScopedScript.registerVariable(ws, n);
+			ws.newVar(n);
 			// varname = this[varname]
 			ws.initHooks[n] = new Node(nt.MEMBER, {
 				left: new Node(nt.THIS),
