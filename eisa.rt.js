@@ -425,51 +425,90 @@ var EISA_DEBUGTIME = false;
 		obtained = new Nai;
 
 	var lib_m = eisa.libary_m = {
-		enumerate: function(f){}
+		enumerate: function(f){ }
 	}
 
-	var register = function(lib, libname){
+	var register_ = function(lib, libname){
 		var name = lib.identity || libname;
 		obtained[name] = YES;
 		libraries[name] = lib;
 		return lib;
 	};
 
+	var register = function(lib, libname){
+		var name = lib.identity || libname;
+		if(obtained[name])
+			return libraries[name];
+		else
+			return register_.apply(this, arguments);
+	}
+
 	var stdlib_m = derive(lib_m);
 
 	var define = function(libname, definition){
+		
 		if(arguments.length < 2) {
 			return function(definition){
 				return define(libname, definition)
 			}
-		}
-		var lib = derive(stdlib_m);
+		};
+
 		var traits = [];
 		var vals = {};
-		lib.enumerate = function(f){
-			for(var i = 0; i < traits.length; i++)
-				f(vals[traits[i]], traits[i]);
-		};
-		var xport = function(name, val){
-			if(name instanceof EISA_NamedArguments){
-				NamedArguments.enumerate(name, function(val, name){
-					xport(name, val)
-				});
-			} else if (name instanceof EISA_Rule){
-				xport(name.left, name.right)
-			} else {
+		var xport_r = function(name, val){
 				traits.push(name);
 				vals[name] = val;
-			}
 		}
-		definition(xport);
+		var xport = function(name, val){
+			var i = 0;
+			var rv;
+			while(i < arguments.length) {
+				var arg = arguments[i];
+				if(arg instanceof EISA_NamedArguments){
+					EISA_NamedArguments.enumerate(arg, function(val, name){
+						xport_r(name, val);
+						rv = val;
+					});
+					i++
+				} else if(arg instanceof EISA_Rule){
+					xport_r(arg.left, rv = arg.right);
+					i++
+				} else {
+					if(i+1 < arguments.length){
+						xport_r(arg, rv = arguments[i+1]);
+						i += 2
+					} else {
+						return function(name){
+							return function(val){
+								xport_r(name, val);
+								return val;
+							}	
+						}(arg)
+					}
+				}
+			}
+		};
+
+		var lib = derive(stdlib_m);
+		var delaied = true;
+		lib.enumerate = function(f){
+			if(delaied) {
+				definition(xport);
+				delaied = false;
+			}
+			for(var i = 0; i < traits.length; i++){
+				f(vals[traits[i]], traits[i]);
+			}
+		};
+		
 		lib.identity = libname;
 		return lib;
 	}
 
 	var acquire = function(name){
-		if(obtained[name] !== YES)
-			throw new Error("Eisa: Unable To Acquire Library \"" + name + '"');
+		if(obtained[name] !== YES){
+			return EISA_libAbsentProvider.acquire(name, function(l){register(l, name)}, arguments);
+		}
 		return obtained[name] === YES ? libraries[name] : null;
 	};
 
@@ -527,5 +566,11 @@ var EISA_DEBUGTIME = false;
 		eisa.forLibraries(libs)(function(v, n){ squashed[n] = v });
 		return squashed;
 	};
+
+	eisa.libAbsentProvider = {
+		acquire: function(name){
+			throw new Error("Unable to acquire library " + name)
+		}
+	}
 
 }(EISA_eisa);

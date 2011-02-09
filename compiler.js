@@ -98,12 +98,6 @@
 	schemata(nt.MEMBERREFLECT, function () {
 		return '(' + transform(this.left) + '[' + transform(this.right) + '])';
 	});
-	schemata(nt.SHARP, function(n, env){
-		if(this.id >= env.parameters.names.length){
-			return C_TEMP('IARG' + this.id);
-		}
-		return C_NAME(env.parameters.names[this.id]);
-	});
 	schemata(nt.ITEM, function (node, env) {
 		return '(' + transform(this.left) + ').item(' + transform(this.member) + ')';
 	});
@@ -1052,7 +1046,7 @@
 				return '';
 			};
 			cSchemata[nt.IMPORT] = function(n, e){
-				ps(C_NAME(this.importVar.name) + '=' + transform(this.expression));
+				ps(C_NAME(this.importVar.name) + '=' + expPart(this.expression));
 				return ''
 			};
 

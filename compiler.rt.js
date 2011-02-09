@@ -14,7 +14,7 @@
 			'UNKNOWN',
 			// Primary
 			'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'SHARP', 'AWAIT',
+			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'AWAIT',
 			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 			// Invocation

@@ -1,13 +1,18 @@
 ﻿//:module: parse
 //	:author:		infinte (aka. be5invis)
 //	:info:			Parser for lofn
-// token types
 
 var lofn = {};
 lofn.version = 'hoejuu';
 eisa.languages.lofn = lofn;
 
 0, function(eisa){
+
+	var LFC_ENABLEREBINDQ = false;
+	// I turned THIS and ARGUMENTS rebinding into disabled
+	// If you need this, change it into TRUE.
+	// 我把 this/arguments 重绑定给关掉了
+	// 如果需要，把上面这行改成 true
 
 	var lofn = eisa.languages.lofn;
 
@@ -16,6 +21,7 @@ eisa.languages.lofn = lofn;
 		ME = 102,
 		MY = 103,
 		CALLEE = 104,
+		ET = 105,
 		ID = 0,
 		OPERATOR = 1,
 		COLON = 2,
@@ -197,6 +203,7 @@ eisa.languages.lofn = lofn;
 		'..': AWAIT,
 		';': SEMICOLON,
 		'@': MY,
+		'&': ET,
 		'\\': BACKSLASH
 	};
 	var symbolType = function (m, p, input) {
@@ -232,6 +239,7 @@ eisa.languages.lofn = lofn;
 				case COMMA:
 				case THEN:
 				case DOT:
+				case ET:
 					noImplicits();
 				case COLON:
 					make(t, s, n);
@@ -291,7 +299,7 @@ eisa.languages.lofn = lofn;
 		//  * linebreaks
 
 		var ou = input.replace(
-			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#])|(\n\s*)/mg),
+			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
 			function (match, comment, optionname, nme, strlit, strunfin, number, symbol, newline, n, full) {
 				after_space = false;
 				if(optionname) {
@@ -515,10 +523,10 @@ eisa.languages.lofn = lofn;
 			if (token) curline = token.line;
 			return t;
 		};
-		var newScope = function (isLE) {
+		var newScope = function (rebindQ) {
 			var n = scopes.length;
 			var s = new ScopedScript(n + 1, workingScope);
-			s.rebindThis = isLE;
+			s.rebindThis = rebindQ;
 			if (workingScope) {
 				workingScope.hasNested = true;
 				workingScope.nest.push(n);
@@ -669,9 +677,9 @@ eisa.languages.lofn = lofn;
 		var colonBody = function (p) {
 			advance(COLON);
 			var n = newScope(), s = workingScope;
-			workingScope.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
-			workingScope.ready();
-			var code = workingScope.code = statements(END);
+			s.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
+			s.ready();
+			var code = s.code = statements(END);
 			endScope();
 			checkBreakPosition(code);
 			if(s.coroid)
@@ -685,7 +693,8 @@ eisa.languages.lofn = lofn;
 
 		var expressionalBody = function(p){
 			advance(COMMA);
-			var n = newScope(true), s = workingScope;
+			var n = newScope(LFC_ENABLEREBINDQ);
+			var s = workingScope;
 			s.unCorable = true;
 			s.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
 			s.ready();
@@ -711,20 +720,21 @@ eisa.languages.lofn = lofn;
 		// Function literal
 		// "function" [Parameters] FunctionBody
 		var functionLiteral = function (rebind) {
-			var f;
+			var f, p;
 			if (tokenIs(STARTBRACE, RDSTART)) {
-				var p = parameters();
+				p = parameters();
 			};
 			if (tokenIs(STARTBRACE, RDSTART)) { // currying arguments
 				f = curryBody(p, rebind);
-			} else if (tokenIs(COLON)) {
+			} else if (p && tokenIs(COLON)) {
 				f = colonBody(p, rebind)
-			} else if (tokenIs(COMMA)) {
+			} else if (p && tokenIs(COMMA)) {
 				if(opt_colononly)
 					throw PE('Only COLON bodies can be used due to `!option colononly`');
 				f = expressionalBody(p, rebind);
-			} else
+			} else {
 				f = functionBody(p, rebind);
+			}
 			return f;
 		};
 
@@ -778,8 +788,9 @@ eisa.languages.lofn = lofn;
 
 		// Lambda Expression content
 		var lambdaCont = function (p) {
+			debugger;
 			advance(LAMBDA);
-			var r = newScope(true);
+			var r = newScope(LFC_ENABLEREBINDQ);
 			var s = workingScope;
 			s.parameters = p;
 			s.unCorable = true;
@@ -894,11 +905,19 @@ eisa.languages.lofn = lofn;
 							throw PE('Implicit # was disabled due to !option sharpno', p.position + 1);
 						var s = workingScope;
 						while(s && s.rebindThis) s = scopes[s.upper - 1];
-						if(s.sharpNo++ >= s.parameters.names.length)
-							ScopedScript.useTemp(s, 'IARG' + s.sharpNo, ScopedScript.PARAMETERTEMP);
-						return new Node(nt.SHARP, {
-							id :  s.sharpNo
-						});
+						s.sharpNo ++;
+						debugger;
+						if(s.sharpNo > s.parameters.names.length) {
+							ScopedScript.useTemp(s, 'IARG' + (s.sharpNo - 1), ScopedScript.PARAMETERTEMP);
+							return new Node(nt.TEMPVAR, {
+								name: 'IARG' + (s.sharpNo - 1)
+							});
+						} else {
+							return new Node(nt.VARIABLE, {
+								name: s.parameters.names[s.sharpNo - 1]
+							});
+						};
+						
 					};
 				case FUNCTION:
 					// function literal started with "function"
@@ -947,14 +966,30 @@ eisa.languages.lofn = lofn;
 			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT)) {
 				switch (token.type) {
 					case STARTBRACE:
-						if (token.value === RDSTART && !token.spaced) { // invocation f(a,b,c...)
+						if (token.value === RDSTART) { // invocation f(a,b,c...)
 							advance();
 							m = new Node(nt.CALL, {
 								func: m
 							});
 							if (tokenIs(ENDBRACE,RDEND)) { m.args = []; advance(); continue; };
-							arglist(m);
+							var unfinished = arglist(m, false, ENDBRACE, RDEND);
+							console.log(unfinished);
 							advance(ENDBRACE, RDEND);
+							while(unfinished){
+								unfinished = false
+								if(tokenIs(STARTBRACE, RDSTART)){
+									advance();
+									arglist(m, false, ENDBRACE, RDEND);
+									unfinished = advance(ENDBRACE, RDEND)
+								} else if (tokenIs(STARTBRACE, CRSTART)){
+									if(ISOBJLIT()){
+										m.args.push(objinit());
+									} else {
+										m.args.push(functionBody());
+									};
+									m.names.push(null);
+								}
+							}
 						} else if (token.value === SQSTART) { // ITEM operator
 							// a[e] === a.item(e)
 							advance();
@@ -963,19 +998,16 @@ eisa.languages.lofn = lofn;
 								member: callItem()
 							});
 							advance(ENDBRACE, SQEND);
-						} else if (token.value === CRSTART && !token.spaced){
+						} else if (token.value === CRSTART){
+							m = new Node(nt.CALL, {
+								func: m,
+								args:[],
+								names: [null]
+							});
 							if(ISOBJLIT()){
-								m = new Node(nt.CALL, {
-									func: m,
-									args: [objinit()],
-									names: [null]
-								})					
+								m.args.push(objinit());
 							} else {
-								m = new Node(nt.CALL, {
-									func: m,
-									args: [functionBody(undefined)],
-									names: [null]
-								})
+								m.args.push(functionBody());
 							}
 						} else {
 							break out;
@@ -989,8 +1021,8 @@ eisa.languages.lofn = lofn;
 			};
 			return m;
 		};
-		var arglist = function (nc, omit) {
-			var args = [], names = [], pivot, name, sname, nameused;
+		var arglist = function (nc, omit, tfinal, vfinal) {
+			var args = [], names = [], pivot, name, sname, nameused, unfinished;
 			do {
 				if ((token.isName || tokenIs(STRING)) && nextIs(COLON)) {
 					// named argument
@@ -1012,11 +1044,16 @@ eisa.languages.lofn = lofn;
 					break
 				};
 				advance();
+				if(tfinal && tokenIs(tfinal, vfinal)) {
+					unfinished = true;
+					break;
+				}
 			} while (true);
 			ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
 			nc.args = (nc.args || []).concat(args);
 			nc.names = (nc.names || []).concat(names);
 			nc.nameused = nc.nameused || nameused;
+			return unfinished
 		};
 
 		var itemlist = function (nc) {
@@ -1288,6 +1325,7 @@ eisa.languages.lofn = lofn;
 
 
 		var statement =  function(){
+			workingScope.sharpNo = 0;
 			var r = statement_r.apply(this, arguments);
 			stmtover();
 			return r;

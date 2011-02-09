@@ -1,4 +1,4 @@
-//lofn.dev.lib.register(lofn.dev.lib.define('fs.w32', function(xport){
+EISA_eisa.dev.lib.register(EISA_eisa.dev.lib.define('fs.wsh', function(xport){
 	var getText = function(path){
 		var fi = new ActiveXObject("ADODB.Stream");
 		fi.Type = 2;
@@ -12,5 +12,5 @@
 		return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 	};
 
-//	xport('getText', getText);
-//}))
+	xport('getText', getText);
+}))

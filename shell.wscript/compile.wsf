@@ -22,6 +22,8 @@
 	<script src="../lib/stdenum.js" type="text/javascript"></script>
 	<script src="libfs.js"></script>
 	<script type="text/javascript">
+		var wshfs = EISA_eisa.libmod.library('fs.wsh');
+		var getText = wshfs.getText;
 		var libs = [
 			eisa.libmod.acquire('mod'),
 			eisa.libmod.acquire('dev'),

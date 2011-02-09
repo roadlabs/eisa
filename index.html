@@ -77,6 +77,9 @@
 			}
 			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, [
 					eisa.dev.lib.fromObject(output),
+					eisa.dev.lib.fromObject({'XHR': function(){
+						return new XmlHttpRequest()
+					}}),
 					eisa.libmod.acquire('mod'),
 					eisa.libmod.acquire('dev'),
 					eisa.libmod.acquire('enum')
