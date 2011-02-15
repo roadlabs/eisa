@@ -779,6 +779,7 @@ eisa.languages.lofn = lofn;
 					(next && next.isName && !(nextIs(TRY) || nextIs(AWAIT)) || nextIs(STRING)) 
 					&& shiftIs(2, COLON) 
 					&& !(shiftIs(3, WHEN) || shiftIs(3, OTHERWISE))
+					|| nextIs(ENDBRACE, CREND)
 			) {
 				if(opt_forfunction)
 					throw PE('Object literal denied due to !option forfunction');
@@ -788,7 +789,6 @@ eisa.languages.lofn = lofn;
 
 		// Lambda Expression content
 		var lambdaCont = function (p) {
-			debugger;
 			advance(LAMBDA);
 			var r = newScope(LFC_ENABLEREBINDQ);
 			var s = workingScope;
@@ -906,7 +906,6 @@ eisa.languages.lofn = lofn;
 						var s = workingScope;
 						while(s && s.rebindThis) s = scopes[s.upper - 1];
 						s.sharpNo ++;
-						debugger;
 						if(s.sharpNo > s.parameters.names.length) {
 							ScopedScript.useTemp(s, 'IARG' + (s.sharpNo - 1), ScopedScript.PARAMETERTEMP);
 							return new Node(nt.TEMPVAR, {
@@ -973,7 +972,6 @@ eisa.languages.lofn = lofn;
 							});
 							if (tokenIs(ENDBRACE,RDEND)) { m.args = []; advance(); continue; };
 							var unfinished = arglist(m, false, ENDBRACE, RDEND);
-							console.log(unfinished);
 							advance(ENDBRACE, RDEND);
 							while(unfinished){
 								unfinished = false
