@@ -1433,9 +1433,27 @@ eisa.languages.lofn = lofn;
 				advance();
 				a.push(fivardecl(true));
 			};
-			advance(OPERATOR, 'in');
-			n.names = a;
-			n.expression = expression();
+			if(tokenIs(OPERATOR, 'in')){
+				advance(OPERATOR, 'in');
+				n.names = a;
+				n.expression = expression();
+			} else {
+				advance(ID, 'from');
+				n.names = a;
+				var f = expression();
+				var args = a.slice(0), names = [];
+				for(var i = 0; i < args.length; i++) {
+					args[i] = new Node(nt.LITERAL, {
+						value: args[i].name
+					});
+					names[i] = null
+				}
+				n.expression = new Node(nt.CALL, {
+					func: f,
+					args: args,
+					names: names
+				});
+			};
 			return n;
 		}
 
