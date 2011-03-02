@@ -201,6 +201,7 @@ eisa.languages.lofn = lofn;
 		'|': THEN,
 		'.': DOT,
 		'..': AWAIT,
+		'!': AWAIT,
 		';': SEMICOLON,
 		'@': MY,
 		'&': ET,
