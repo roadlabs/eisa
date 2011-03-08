@@ -225,7 +225,7 @@
 			return strize(this.value);
 		} else if (typeof this.value === 'number'){
 			return '(' + this.value + ')';	
-		} else return '' + this.value;
+		} else return '' + this.value.map;
 	});
 
 	var binoper = function (operator, tfoper) {

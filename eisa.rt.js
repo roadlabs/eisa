@@ -89,6 +89,42 @@ var EISA_OBSTRUCTIVE_SCHEMATA_M = {
 		return v;
 	}
 }
+var EISA_THROW = function(x){
+	throw x || "[?] Unexpected error"
+}
+var EISA_TRY = function(f){
+	var ret, fcatch, ffinally;
+	for(var i = arguments.length - 1; i; i--){
+		if(arguments[i] instanceof EISA_NamedArguments){
+			fcatch = arguments[i]['catch'];
+			ffinally = arguments[i]['finally'];
+			break;
+		}
+	};
+	
+	if(!fcatch)
+		fcatch = function(e){};
+
+	var success = false;
+	var arg;
+
+	for(var j = 0, argn = arguments.length; j < argn; j++)
+		if(typeof (arg = arguments[j]) === "function") {
+			try {
+				ret = arg();
+				success = true
+			} catch(e){
+				success = false
+				fcatch(e);
+			};
+			if(success) {
+				if(ffinally) ffinally();
+				return ret
+			}
+		}
+			
+	return ret;
+}
 
 var NamedArguments = function(){
 	for(var i=arguments.length-2;i>=0;i-=2)

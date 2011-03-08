@@ -147,8 +147,6 @@ eisa.languages.lofn = lofn;
 		'object': OBJECT,
 		'do': DO,
 		'try': TRY,
-		'catch': CATCH,
-		'finally': FINALLY,
 		'TASK': TASK,
 		'pass': PASS,
 		'using': USING
@@ -597,14 +595,16 @@ eisa.languages.lofn = lofn;
 
 		// constants
 		var consts = {
-			'true': true,
-			'false': false,
-			'null': null,
-			'undefined': void 0
+			'true': 'true',
+			'false': 'false',
+			'null': 'null',
+			'undefined': 'undefined',
+			'try': 'EISA_TRY',
+			'throw': 'EISA_THROW'
 		};
 		var constant = function () {
-			var t = advance(CONSTANT);
-			return new Node(nt.LITERAL, { value: consts[t.value] });
+			var t = advance();
+			return new Node(nt.LITERAL, { value: {map: consts[t.value]}});
 		};
 
 		// this pointer
@@ -835,6 +835,8 @@ eisa.languages.lofn = lofn;
 				case STRING:
 					return literal();
 				case CONSTANT:
+				case TRY:
+				case THROW:
 					return constant();
 				case ME:
 					return thisp();
@@ -1339,9 +1341,9 @@ eisa.languages.lofn = lofn;
 				case RETURN:
 					advance();
 					return ifaffix(new Node(nt.RETURN, { expression: expression() }));
-				case THROW:
-					advance();
-					return new Node(nt.THROW, { expression: expression() });
+//				case THROW:
+//					advance();
+//					return new Node(nt.THROW, { expression: expression() });
 				case IF:
 					return ifstmt();
 				case WHILE:
@@ -1368,8 +1370,8 @@ eisa.languages.lofn = lofn;
 					return vardecls();
 				case USING:
 					return usingstmt();
-				case TRY:
-					return trystmt();
+//				case TRY:
+//					return trystmt();
 				case ENDBRACE:
 					if (token.value === CREND)
 						return;
