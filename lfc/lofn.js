@@ -148,7 +148,7 @@ eisa.languages.lofn = lofn;
 		'do': DO,
 		'try': TRY,
 		'TASK': TASK,
-		'pass': PASS,
+//		'pass': PASS,
 		'using': USING
 	};
 	var nameType = function (m) {
@@ -1577,8 +1577,8 @@ eisa.languages.lofn = lofn;
 				node = new Node(nt.FORIN);
 				node.no = ++ workingScope.finNo;
 				var declQ = false;
-				if(tokenIs(PASS)){
-					advance(PASS);
+				if(tokenIs(OPERATOR, '*')){
+					advance(OPERATOR);
 					if(tokenIs(VAR)){
 						advance(VAR);
 						declQ = true;
