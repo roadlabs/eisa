@@ -296,9 +296,9 @@ eisa.languages.lofn = lofn;
 		//  * numbers
 		//  * symbols
 		//  * linebreaks
-
+debugger;
 		var ou = input.replace(
-			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
+			(/((?:\/\/|--).*)|(?:^-![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
 			function (match, comment, optionname, nme, strlit, strunfin, number, symbol, newline, n, full) {
 				after_space = false;
 				if(optionname) {
