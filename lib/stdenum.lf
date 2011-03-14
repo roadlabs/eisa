@@ -1,27 +1,26 @@
-lib.register lib.define("enum") {|export|
+module.declare [], {|require, exports|
 	var upto = enumerator function(m, n):
 		for(var i = m; i <= n; i += 1),
-			yield.. i
+			yield ! i
 	end;
 	var downto = enumerator function(m, n):
 		for(var i = m; i >= n; i -= 1),
-			yield.. i
+			yield ! i
 	end;
 	var takeWhile = enumerator function(I, condition):
-		for pass var a in I:
+		for *var a in I:
 			if not condition.apply(null, a), return undefined;
-			bypass.. a
+			bypass ! a
 		end
 	end;
 	var select = enumerator function(I, condition):
-		for pass var a in I,
+		for *var a in I,
 			if condition.apply(null, a),
-				bypass.. a
+				bypass ! a
 	end;
 
-	export \
-		upto: upto,
-		downto: downto,
-		takeWhile: takeWhile,
-		select: select
+	exports.upto = upto;
+	exports.downto = downto;
+	exports.takeWhile = takeWhile;
+	exports.select = select;
 }

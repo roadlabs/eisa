@@ -225,7 +225,7 @@
 			return strize(this.value);
 		} else if (typeof this.value === 'number'){
 			return '(' + this.value + ')';	
-		} else return '' + this.value;
+		} else return '' + this.value.map;
 	});
 
 	var binoper = function (operator, tfoper) {
@@ -1255,7 +1255,8 @@
 						body = compileFunctionBody(queue[i], queue[i] === enter ? enterText : '', queue[i] === enter ? exitText : '', trees);
 						onStep(queue[i], i, body);
 						i += 1;
-						setTimeout(step, 10);
+
+						setTimeout(step, 0);
 					} else {
 						return onSuccess(getFs(body))
 					}
@@ -1265,44 +1266,42 @@
 		}
 	};
 
-	eisa.Script = function(source, language, config, libraries){
 
-		var libs = [eisa.stl].concat(libraries || [])
+	eisa.Script = function(source, language, config, libraries, callback){
 
-		var inita = eisa.forLibraries(libs);
-		var tokens = language.lex(source);
-		var ast = language.parse(tokens, source, inita);
+		var libs = ['stl', 'mod'].concat(libraries || [])
 
-		// ast = JSON.parse(JSON.stringify(ast));
+		var inita = eisa.using(libs, function(inita, initvs){
+			var tokens = language.lex(source);
+			var ast = language.parse(tokens, source, inita);
 
-		config = config || eisa.standardTransform
-	
-		var vm;
-		var lfcr;
+			// ast = JSON.parse(JSON.stringify(ast));
 
-		var initvs;
-	
-		tokens = null;	
+			config = config || eisa.standardTransform
+		
+			var vm;
+			var lfcr;
 
-		return {
-			compile: function(){
-				this.setGlobalVariable = null;
-				lfcr = eisa.Compiler(ast, config).compile(); 
-				return lfcr;
-			},
-			asyncCompile: function(onSuccess, onStep){
-				eisa.Compiler(ast, config).asyncCompile(
-					function(cm){
-						lfcr = cm;
-						onSuccess.apply(this, arguments)
-					}, onStep);
-			},
-			start: function(){
-				if(!lfcr) this.compile();
-				if(!initvs)
-					initvs = eisa.squashLibs(libs)
-				lfcr.wrappedF.apply(initvs, arguments);
-			}
-		};
+			tokens = null;	
+
+			return callback({
+				compile: function(){
+					this.setGlobalVariable = null;
+					lfcr = eisa.Compiler(ast, config).compile(); 
+					return lfcr;
+				},
+				asyncCompile: function(onSuccess, onStep){
+					eisa.Compiler(ast, config).asyncCompile(
+						function(cm){
+							lfcr = cm;
+							onSuccess.apply(this, arguments)
+						}, onStep);
+				},
+				start: function(){
+					if(!lfcr) this.compile();
+					lfcr.wrappedF.apply(initvs, arguments);
+				}
+			})
+		});
 	};	
 }(EISA_eisa);

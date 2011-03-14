@@ -260,39 +260,43 @@ function getCurrentLineBlanks(obj) {
 		}
 		var last_blanks = '';
 		var exec = false;
-		$('input').addEventListener('keydown', function(e){
-			if(e.shiftKey && (e.key === 'Enter' || e.keyCode === 13)){
-				e.preventDefault();exec = true;
-				return setTimeout(function(){run();},0);
-			} else if(e.ctrlKey && (e.key === 'Enter' || e.keyCode === 13)){
-				e.preventDefault();exec = true;
-				return setTimeout(function(){
-					run();
-					$('input').value = '';
-					resizeInput();
-				},0);
-			} else if(e.key === 'Enter' || e.keyCode === 13){
-				last_blanks = getCurrentLineBlanks($('input'));
-			} else if(e.key === 'Tab' || e.keyCode === 9){
-				e.preventDefault();
-				insertAtCursor($('input'), '    ');
-			}
-		}, false);
-		$('input').addEventListener('keyup',function(){
-			var len = 0;
-			return function(e){
-				var l = $('input').value.length;
-				if(l <= len)
-					$('input').style.height = 0;
-				len = l;
-				if(e.key === 'Enter' || e.keyCode === 13){
-					if(!exec) insertAtCursor($('input'), last_blanks);
-					exec = false;
+
+		try {
+			$('input').addEventListener('keydown', function(e){
+				if(e.shiftKey && (e.key === 'Enter' || e.keyCode === 13)){
+					e.preventDefault();exec = true;
+					return setTimeout(function(){run();},0);
+				} else if(e.ctrlKey && (e.key === 'Enter' || e.keyCode === 13)){
+					e.preventDefault();exec = true;
+					return setTimeout(function(){
+						run();
+						$('input').value = '';
+						resizeInput();
+					},0);
+				} else if(e.key === 'Enter' || e.keyCode === 13){
+					last_blanks = getCurrentLineBlanks($('input'));
+				} else if(e.key === 'Tab' || e.keyCode === 9){
+					e.preventDefault();
+					insertAtCursor($('input'), '    ');
 				}
-				resizeInput();
-				bottom();
-			}
-		}(), false)
+			}, false);
+			$('input').addEventListener('keyup',function(){
+				var len = 0;
+				return function(e){
+					var l = $('input').value.length;
+					if(l <= len)
+						$('input').style.height = 0;
+					len = l;
+					if(e.key === 'Enter' || e.keyCode === 13){
+						if(!exec) insertAtCursor($('input'), last_blanks);
+						exec = false;
+					}
+					resizeInput();
+					bottom();
+				}
+			}(), false);
+		} catch(e) {}
+
 		window.onload = function(){
 			tinfo('LFI: lofn interactive', 'product');
 			tinfo('ver. Houjuu @ web.\tAmor ex Dessis.', 'ver');

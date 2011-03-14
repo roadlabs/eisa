@@ -147,10 +147,8 @@ eisa.languages.lofn = lofn;
 		'object': OBJECT,
 		'do': DO,
 		'try': TRY,
-		'catch': CATCH,
-		'finally': FINALLY,
 		'TASK': TASK,
-		'pass': PASS,
+//		'pass': PASS,
 		'using': USING
 	};
 	var nameType = function (m) {
@@ -201,6 +199,7 @@ eisa.languages.lofn = lofn;
 		'|': THEN,
 		'.': DOT,
 		'..': AWAIT,
+		'!': AWAIT,
 		';': SEMICOLON,
 		'@': MY,
 		'&': ET,
@@ -299,7 +298,7 @@ eisa.languages.lofn = lofn;
 		//  * linebreaks
 
 		var ou = input.replace(
-			(/(\/\/.*)|(?:^![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
+			(/((?:\/\/|--).*)|(?:^-![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
 			function (match, comment, optionname, nme, strlit, strunfin, number, symbol, newline, n, full) {
 				after_space = false;
 				if(optionname) {
@@ -353,7 +352,10 @@ eisa.languages.lofn = lofn;
 			return message;
 		}
 		var PE = function(message, p){
-			return PW(message, p);
+
+			var e = new SyntaxError(PW(message, p));
+			e.name = "Compile Error";
+			return e;
 		};
 		
 		var resolveVariables = function(scope, trees, explicitQ, aux) {
@@ -596,14 +598,17 @@ eisa.languages.lofn = lofn;
 
 		// constants
 		var consts = {
-			'true': true,
-			'false': false,
-			'null': null,
-			'undefined': void 0
+
+			'true': 'true',
+			'false': 'false',
+			'null': 'null',
+			'undefined': 'undefined',
+			'try': 'EISA_TRY',
+			'throw': 'EISA_THROW'
 		};
 		var constant = function () {
-			var t = advance(CONSTANT);
-			return new Node(nt.LITERAL, { value: consts[t.value] });
+			var t = advance();
+			return new Node(nt.LITERAL, { value: {map: consts[t.value]}});
 		};
 
 		// this pointer
@@ -834,6 +839,9 @@ eisa.languages.lofn = lofn;
 				case STRING:
 					return literal();
 				case CONSTANT:
+
+				case TRY:
+				case THROW:
 					return constant();
 				case ME:
 					return thisp();
@@ -862,7 +870,7 @@ eisa.languages.lofn = lofn;
 							if(opt_filledbrace)
 								throw PE('() for undefined is disabled due to !option filledbrace');
 							advance();
-							return new Node(nt.LITERAL, {value: void 0})
+							return new Node(nt.LITERAL, {value: {map: 'undefined'}})
 						}
 						var n = expression();
 						advance(ENDBRACE, 41);
@@ -1022,7 +1030,7 @@ eisa.languages.lofn = lofn;
 		var arglist = function (nc, omit, tfinal, vfinal) {
 			var args = [], names = [], pivot, name, sname, nameused, unfinished;
 			do {
-				if ((token.isName || tokenIs(STRING)) && nextIs(COLON)) {
+				if (token && (token.isName || tokenIs(STRING)) && nextIs(COLON)) {
 					// named argument
 					// name : value
 					name = token.value, sname = true, nameused = true;
@@ -1338,9 +1346,6 @@ eisa.languages.lofn = lofn;
 				case RETURN:
 					advance();
 					return ifaffix(new Node(nt.RETURN, { expression: expression() }));
-				case THROW:
-					advance();
-					return new Node(nt.THROW, { expression: expression() });
 				case IF:
 					return ifstmt();
 				case WHILE:
@@ -1367,8 +1372,6 @@ eisa.languages.lofn = lofn;
 					return vardecls();
 				case USING:
 					return usingstmt();
-				case TRY:
-					return trystmt();
 				case ENDBRACE:
 					if (token.value === CREND)
 						return;
@@ -1433,9 +1436,27 @@ eisa.languages.lofn = lofn;
 				advance();
 				a.push(fivardecl(true));
 			};
-			advance(OPERATOR, 'in');
-			n.names = a;
-			n.expression = expression();
+			if(tokenIs(OPERATOR, 'in')){
+				advance(OPERATOR, 'in');
+				n.names = a;
+				n.expression = expression();
+			} else {
+				advance(ID, 'from');
+				n.names = a;
+				var f = expression();
+				var args = a.slice(0), names = [];
+				for(var i = 0; i < args.length; i++) {
+					args[i] = new Node(nt.LITERAL, {
+						value: args[i].name
+					});
+					names[i] = null
+				}
+				n.expression = new Node(nt.CALL, {
+					func: f,
+					args: args,
+					names: names
+				});
+			};
 			return n;
 		}
 
@@ -1556,8 +1577,8 @@ eisa.languages.lofn = lofn;
 				node = new Node(nt.FORIN);
 				node.no = ++ workingScope.finNo;
 				var declQ = false;
-				if(tokenIs(PASS)){
-					advance(PASS);
+				if(tokenIs(OPERATOR, '*')){
+					advance(OPERATOR);
 					if(tokenIs(VAR)){
 						advance(VAR);
 						declQ = true;
