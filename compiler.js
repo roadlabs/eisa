@@ -1255,7 +1255,7 @@
 						body = compileFunctionBody(queue[i], queue[i] === enter ? enterText : '', queue[i] === enter ? exitText : '', trees);
 						onStep(queue[i], i, body);
 						i += 1;
-						setTimeout(step, 10);
+						setTimeout(step, 0);
 					} else {
 						return onSuccess(getFs(body))
 					}
@@ -1265,44 +1265,41 @@
 		}
 	};
 
-	eisa.Script = function(source, language, config, libraries){
+	eisa.Script = function(source, language, config, libraries, callback){
 
-		var libs = [eisa.stl].concat(libraries || [])
+		var libs = ['stl', 'mod'].concat(libraries || [])
 
-		var inita = eisa.forLibraries(libs);
-		var tokens = language.lex(source);
-		var ast = language.parse(tokens, source, inita);
+		var inita = eisa.using(libs, function(inita, initvs){
+			var tokens = language.lex(source);
+			var ast = language.parse(tokens, source, inita);
 
-		// ast = JSON.parse(JSON.stringify(ast));
+			// ast = JSON.parse(JSON.stringify(ast));
 
-		config = config || eisa.standardTransform
-	
-		var vm;
-		var lfcr;
+			config = config || eisa.standardTransform
+		
+			var vm;
+			var lfcr;
 
-		var initvs;
-	
-		tokens = null;	
+			tokens = null;	
 
-		return {
-			compile: function(){
-				this.setGlobalVariable = null;
-				lfcr = eisa.Compiler(ast, config).compile(); 
-				return lfcr;
-			},
-			asyncCompile: function(onSuccess, onStep){
-				eisa.Compiler(ast, config).asyncCompile(
-					function(cm){
-						lfcr = cm;
-						onSuccess.apply(this, arguments)
-					}, onStep);
-			},
-			start: function(){
-				if(!lfcr) this.compile();
-				if(!initvs)
-					initvs = eisa.squashLibs(libs)
-				lfcr.wrappedF.apply(initvs, arguments);
-			}
-		};
+			return callback({
+				compile: function(){
+					this.setGlobalVariable = null;
+					lfcr = eisa.Compiler(ast, config).compile(); 
+					return lfcr;
+				},
+				asyncCompile: function(onSuccess, onStep){
+					eisa.Compiler(ast, config).asyncCompile(
+						function(cm){
+							lfcr = cm;
+							onSuccess.apply(this, arguments)
+						}, onStep);
+				},
+				start: function(){
+					if(!lfcr) this.compile();
+					lfcr.wrappedF.apply(initvs, arguments);
+				}
+			})
+		});
 	};	
 }(EISA_eisa);

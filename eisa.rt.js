@@ -3,6 +3,9 @@
 //	:info:			The Eisa Runtime
 
 // The smallest Runtime environment for Lofn.
+
+ESSENTIA_module.globalStart("lib/");
+
 var Nai = function(){};
 Nai.prototype = {
 	constructor: undefined,
@@ -453,160 +456,22 @@ EISA_eisa.log = function(message){};
 
 var EISA_DEBUGTIME = false;
 
-// lofn/dijbris library system.
-"Essential library system", function(eisa){
-	var libl = new Nai;
-	var YES = {};
-	var libraries = new Nai,
-		obtained = new Nai;
-
-	var lib_m = eisa.libary_m = {
-		enumerate: function(f){ }
-	}
-
-	var register_ = function(lib, libname){
-		var name = lib.identity || libname;
-		obtained[name] = YES;
-		libraries[name] = lib;
-		return lib;
+"Eisa module helpers", function(eisa){
+	var module = ESSENTIA_module;
+	eisa.using = function(libs, f){
+		module.provide(libs, function(require){
+			var vals = {}, obts = {}, YES = {};
+			for(var i = 0; i < libs.length; i++)
+				require.enumerate(libs[i], function(n, v){
+					vals[n] = v;
+					obts[n] = YES
+				});
+			var enumVars = function(f){
+				for(var each in vals)
+					if(obts[each] === YES)
+						f(vals[each], each)
+			};
+			f(enumVars, vals);
+		})
 	};
-
-	var register = function(lib, libname){
-		var name = lib.identity || libname;
-		if(obtained[name])
-			return libraries[name];
-		else
-			return register_.apply(this, arguments);
-	}
-
-	var stdlib_m = derive(lib_m);
-
-	var define = function(libname, definition){
-		
-		if(arguments.length < 2) {
-			return function(definition){
-				return define(libname, definition)
-			}
-		};
-
-		var traits = [];
-		var vals = {};
-		var xport_r = function(name, val){
-				traits.push(name);
-				vals[name] = val;
-		}
-		var xport = function(name, val){
-			var i = 0;
-			var rv;
-			while(i < arguments.length) {
-				var arg = arguments[i];
-				if(arg instanceof EISA_NamedArguments){
-					EISA_NamedArguments.enumerate(arg, function(val, name){
-						xport_r(name, val);
-						rv = val;
-					});
-					i++
-				} else if(arg instanceof EISA_Rule){
-					xport_r(arg.left, rv = arg.right);
-					i++
-				} else {
-					if(i+1 < arguments.length){
-						xport_r(arg, rv = arguments[i+1]);
-						i += 2
-					} else {
-						return function(name){
-							return function(val){
-								xport_r(name, val);
-								return val;
-							}	
-						}(arg)
-					}
-				}
-			}
-		};
-
-		var lib = derive(stdlib_m);
-		var delaied = true;
-		lib.enumerate = function(f){
-			if(delaied) {
-				definition(xport);
-				delaied = false;
-			}
-			for(var i = 0; i < traits.length; i++){
-				f(vals[traits[i]], traits[i]);
-			}
-		};
-		
-		lib.identity = libname;
-		return lib;
-	}
-
-	var acquire = function(name){
-		if(obtained[name] !== YES){
-			return EISA_libAbsentProvider.acquire(name, function(l){register(l, name)}, arguments);
-		}
-		return obtained[name] === YES ? libraries[name] : null;
-	};
-
-	eisa.libmod = {
-		acquire: acquire,
-		library: function(){
-			var a = [];
-			for(var i = 0; i < arguments.length; i += 1)
-				a[i] = acquire(arguments[i]);
-			return eisa.squashLibs(a)
-		}
-	};
-
-	eisa.dev = {
-		lib: {
-			define: define,
-			register: register,
-			fromObject: function(obj){
-				var lib = derive(lib_m);
-				var traits = [], vals = {};
-				for(var each in obj)
-					if(EISA_OWNS(obj, each)){
-						traits.push(each);
-						vals[each] = obj[each]
-					};
-				lib.enumerate = function(r){
-					for(var i = 0; i < traits.length; i++)
-						r(vals[traits[i]], traits[i]);
-				};
-				return lib;
-			}
-		},
-		compileTime: false
-	};
-
-	register(eisa.dev.lib.fromObject(eisa.libmod), 'mod');
-	register(eisa.dev.lib.fromObject(eisa.dev), 'dev');
-
-	eisa.dev.aslib = function(n, o) {
-		return register(eisa.dev.lib.fromObject(o), n)
-	}
-
-	eisa.forLibraries = function(libs){
-		return function(r, fl, compileTime){
-			fl = fl || function(){};
-			for(var i = 0; i<libs.length;i++){
-				fl(libs[i]);
-				libs[i].enumerate(r, compileTime);
-			}
-		}
-	};
-
-	eisa.squashLibs = function(libs){
-		var squashed = {};
-		eisa.forLibraries(libs)(function(v, n){ squashed[n] = v });
-		return squashed;
-	};
-
-	eisa.libAbsentProvider = {
-		acquire: function(name){
-			throw new Error("Unable to acquire library " + name)
-		}
-	}
-
 }(EISA_eisa);

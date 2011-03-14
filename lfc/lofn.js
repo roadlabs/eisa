@@ -296,7 +296,6 @@ eisa.languages.lofn = lofn;
 		//  * numbers
 		//  * symbols
 		//  * linebreaks
-debugger;
 		var ou = input.replace(
 			(/((?:\/\/|--).*)|(?:^-![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
 			function (match, comment, optionname, nme, strlit, strunfin, number, symbol, newline, n, full) {
@@ -352,7 +351,9 @@ debugger;
 			return message;
 		}
 		var PE = function(message, p){
-			return PW(message, p);
+			var e = new SyntaxError(PW(message, p));
+			e.name = "Compile Error";
+			return e;
 		};
 		
 		var resolveVariables = function(scope, trees, explicitQ, aux) {
@@ -865,7 +866,7 @@ debugger;
 							if(opt_filledbrace)
 								throw PE('() for undefined is disabled due to !option filledbrace');
 							advance();
-							return new Node(nt.LITERAL, {value: void 0})
+							return new Node(nt.LITERAL, {value: {map: 'undefined'}})
 						}
 						var n = expression();
 						advance(ENDBRACE, 41);
@@ -1025,7 +1026,7 @@ debugger;
 		var arglist = function (nc, omit, tfinal, vfinal) {
 			var args = [], names = [], pivot, name, sname, nameused, unfinished;
 			do {
-				if ((token.isName || tokenIs(STRING)) && nextIs(COLON)) {
+				if (token && (token.isName || tokenIs(STRING)) && nextIs(COLON)) {
 					// named argument
 					// name : value
 					name = token.value, sname = true, nameused = true;
