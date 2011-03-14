@@ -24,18 +24,10 @@
 	<script type="text/javascript">
 		var wshfs = EISA_eisa.libmod.library('fs.wsh');
 		var getText = wshfs.getText;
-		var libs = [
-			eisa.libmod.acquire('mod'),
-			eisa.libmod.acquire('dev'),
-			eisa.libmod.acquire('enum')
-		];
-		var script = new eisa.Script(getText(WScript.Arguments.Unnamed(0)), eisa.languages.lofn, null, libs);
-		var r = script.compile();
-		WScript.Echo(r.generatedSource + ".call(EISA_eisa.squashLibs(["
-			+ "EISA_eisa.libmod.acquire('std'),"
-			+ "EISA_eisa.libmod.acquire('mod'),"
-			+ "EISA_eisa.libmod.acquire('dev'),"
-			+ "EISA_eisa.libmod.acquire('enum')"
-		+"]))");
+		var libs = [];
+		var script = new eisa.Script(getText(WScript.Arguments.Unnamed(0)), eisa.languages.lofn, null, libs, function(){
+			var r = script.compile();
+			WScript.Echo("eisa.using(['stl','mod'], function(_enum, vals){" + r.generatedSource + ".call(vals) })");
+		})
 	</script>
 </job>

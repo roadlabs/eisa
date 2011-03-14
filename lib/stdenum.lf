@@ -1,26 +1,29 @@
 module.declare [], {|require, exports|
-	var upto = enumerator function(m, n):
+	var upto = exports.upto = enumerator function(m, n):
 		for(var i = m; i <= n; i += 1),
 			yield ! i
 	end;
-	var downto = enumerator function(m, n):
+	var up = exports.up = enumerator function(n):
+		for(var i = n; true; i += 1),
+			yield ! i
+	end;
+	var downto = exports.downto = enumerator function(m, n):
 		for(var i = m; i >= n; i -= 1),
 			yield ! i
 	end;
-	var takeWhile = enumerator function(I, condition):
+	var down = exports.down = enumerator function(n):
+		for(var i = n; true; i -= 1),
+			yield ! i
+	end;
+	var takeWhile = exports.takeWhile = enumerator function(I, condition):
 		for *var a in I:
 			if not condition.apply(null, a), return undefined;
 			bypass ! a
 		end
 	end;
-	var select = enumerator function(I, condition):
+	var select = exports.select = enumerator function(I, condition):
 		for *var a in I,
 			if condition.apply(null, a),
 				bypass ! a
 	end;
-
-	exports.upto = upto;
-	exports.downto = downto;
-	exports.takeWhile = takeWhile;
-	exports.select = select;
 }
