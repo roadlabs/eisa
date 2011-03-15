@@ -377,7 +377,7 @@
 		ScopedScript.useTemp(e, 'YV');
 		ScopedScript.useTemp(e, 'YVC');
 		var s_enum = '';
-		s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ')()'
+		s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
 		s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
 		s_enum += ',' + C_TEMP('YVC') + '?(';
 		if(this.pass){
@@ -390,7 +390,7 @@
 		}
 		s_enum = '(' + s_enum + '):undefined)';
 		var s = 'for(';
-		s += '(' + C_TEMP('ENUMERATOR' + this.no) + '=' + transform(this.range) + ')'; // get enumerator;
+		s += '(' + C_TEMP('ENUMERATOR' + this.no) + '=' + transform(this.range) + '.getEnumerator())'; // get enumerator;
 		s += ',' + s_enum
 		s += ';\n' + C_TEMP('YVC')
 		s += ';' + s_enum;
@@ -970,7 +970,7 @@
 				ScopedScript.useTemp(env, 'YV');
 				ScopedScript.useTemp(env, 'YVC');
 				var s_enum = '';
-				s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ')()'
+				s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
 				s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
 				s_enum += ',' + C_TEMP('YVC') + '?(';
 				if(this.pass){
@@ -985,7 +985,7 @@
 				var lLoop = label();
 				var bk = lNearest;
 				var lEnd = lNearest = label();
-				ps(C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range));
+				ps(C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range) + '.getEnumerator()');
 				ps(s_enum);
 				(LABEL(lLoop));
 				ps('if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd));
