@@ -1577,19 +1577,15 @@ eisa.languages.lofn = lofn;
 				node = new Node(nt.FORIN);
 				node.no = ++ workingScope.finNo;
 				var declQ = false;
+				if(tokenIs(VAR)){
+					advance(VAR);
+					declQ = true;
+				};
 				if(tokenIs(OPERATOR, '*')){
-					advance(OPERATOR);
-					if(tokenIs(VAR)){
-						advance(VAR);
-						declQ = true;
-					};
+					advance();
 					node.pass = true;
 					node.passVar = fivardecl(declQ);
 				} else {
-					if(tokenIs(VAR)){
-						advance(VAR);
-						declQ = true;
-					};
 					var decls = [fivardecl(declQ)];
 					while(tokenIs(COMMA)){
 						advance(COMMA);

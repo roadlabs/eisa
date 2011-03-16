@@ -16,13 +16,13 @@ module.declare [], {|require, exports|
 			yield ! i
 	end;
 	var takeWhile = exports.takeWhile = enumerator function(I, condition):
-		for *var a in I:
+		for var *a in I:
 			if not condition.apply(null, a), return undefined;
 			bypass ! a
 		end
 	end;
 	var select = exports.select = enumerator function(I, condition):
-		for *var a in I,
+		for var *a in I,
 			if condition.apply(null, a),
 				bypass ! a
 	end;
