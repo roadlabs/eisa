@@ -1,11 +1,9 @@
-//:module: primitives
-//	:author:		infinte (aka. be5invis)
-//	:info:			The Eisa Runtime
-
-// The smallest Runtime environment for Lofn.
-
+//: ^
+// Eisa Runtime, by Belleve Invis
+//: module-system-init
 ESSENTIA_module.globalStart("lib/");
 
+//: Nai
 var Nai = function(){};
 Nai.prototype = {
 	constructor: undefined,
@@ -15,6 +13,7 @@ Nai.prototype = {
 	propertyIsEnumerable: undefined
 };
 
+//: derive
 var derive = Object.create ? Object.create : function(){
 	var F = function(){};
 	return function(obj){
@@ -22,20 +21,28 @@ var derive = Object.create ? Object.create : function(){
 		return new F;
 	}
 }();
+var EISA_DERIVE = derive;
+var EISA_derive = derive;
 
+//: OWNS
 var EISA_OWNS = function(){
 	var hop = {}.hasOwnProperty;
 	return function(o,p){
 		return hop.call(o,p)
 	}
 }();
+var EISA_owns = EISA_OWNS;
 
+//: SLICE
 var EISA_SLICE = function () {
 	var s = Array.prototype.slice;
 	return function (x, n) {
 		return s.call(x, n);
 	};
 } ();
+var EISA_slice = EISA_SLICE;
+
+//: UNIQ
 var EISA_UNIQ = function (arr) {
 	var b = arr.slice(0).sort();
 	if(b.length === 0) return [];
@@ -44,29 +51,41 @@ var EISA_UNIQ = function (arr) {
 		if (b[i] && b[i] != b[i - 1])
 			t[tn++] = b[i];
 	return t;
+};
+var EISA_uniq = EISA_UNIQ;
+
+//: NamedArguments
+var NamedArguments = function(){
+	for(var i=arguments.length-2;i>=0;i-=2)
+		this[arguments[i]]=arguments[i+1];
+};
+var EISA_NamedArguments = NamedArguments;
+NamedArguments.prototype = new Nai();
+NamedArguments.fetch = function(o, p){
+	if(EISA_OWNS(o, p)) return o[p]
 }
-var NARG = function () {
-	var o = new Nai, i = 0, argn = arguments.length;
-	for (; i < argn; i += 2) {
-		o[arguments[i]] = arguments[i + 1];
-	}
-	return o;
+NamedArguments.enumerate = function(o, f){	
+	for(var each in o)
+		if(EISA_OWNS(o, each))
+			f.call(o[each], o[each], each);
+}
+NamedArguments.each = NamedArguments.enumerate;
+
+//: EISA_CNARG
+var EISA_CNARG = function(a){
+	if(a instanceof NamedArguments)
+		return a
+	else
+		return new NamedArguments
 }
 
-var noth = void 0;
-
+//: AUX-METHODS
 var EISA_M_TOP = function(){return this}();
-var EISA_MINVOKE = function (p, s) {
-	return p[s].apply(p,EISA_SLICE(arguments,2))
-}
 var EISA_IINVOKE = function (p, s) {
 	return p.item(s).apply(p, EISA_SLICE(arguments,2))
 }
 var EISA_RMETHOD = function (l, r, m){
 	return r[m](l)
-}
-var EISA_OBSTRUCT = function(x){
-	return x;
 }
 var EISA_YIELDVALUE = function (a){
 	this.value = a[0];
@@ -75,24 +94,19 @@ var EISA_YIELDVALUE = function (a){
 var EISA_RETURNVALUE = function (x){
 	this.value = x
 }
-var EISA_WHILE = function(c, f){
-	var r;
-	while(c()){
-		r = f()
-	};
-	return r;
-}
 var EISA_OBSTRUCTIVE = function(f){
 	return {
 		build: f
 	}
 }
+//: OBSTRUCTIVE_SCHEMATA_M
 var EISA_OBSTRUCTIVE_SCHEMATA_M = {
 	'return': function(t, a, v){
 		return v;
 	}
 }
 
+//: Exceptions
 var EISA_THROW = function(x){
 	throw x || "[?] Unexpected error"
 }
@@ -130,35 +144,7 @@ var EISA_TRY = function(f){
 	return ret;
 }
 
-var NamedArguments = function(){
-	for(var i=arguments.length-2;i>=0;i-=2)
-		this[arguments[i]]=arguments[i+1];
-};
-var EISA_NamedArguments = NamedArguments;
-NamedArguments.prototype = {};
-NamedArguments.fetch = function(o, p){
-	if(EISA_OWNS(o, p)) return o[p]
-}
-NamedArguments.enumerate = function(o, f){	
-	for(var each in o)
-		if(EISA_OWNS(o, each))
-			f.call(o[each], o[each], each);
-}
-NamedArguments.each = NamedArguments.enumerate;
-NamedArguments.prototype.contains = function(name){
-	return EISA_OWNS(this, name);
-}
-NamedArguments.prototype.toString = function(){
-	return '[lfMRT NamedArguments]'
-}
-var EISA_CNARG = function(a){
-	if(a instanceof NamedArguments)
-		return a
-	else
-		return new NamedArguments
-}
-
-
+//: proto-exts
 Object.prototype.item = function (i) {
 	return this[i];
 };
@@ -202,6 +188,7 @@ RegExp.convertFrom = function(s){
 	return new RegExp(s);
 }
 
+//: ES5
 // Essential ES5 prototype methods
 if (!Array.prototype.map) {
 	Array.prototype.map = function(fun /*, thisp */) {
@@ -246,6 +233,57 @@ if (!Array.prototype.some){
 		return false;
 	};
 }
+if (!Array.prototype.reduce)
+{
+	Array.prototype.reduce = function(fun /*, initialValue */)
+	{
+		"use strict";
+
+		if (this === void 0 || this === null)
+			throw new TypeError();
+
+		var t = Object(this);
+		var len = t.length >>> 0;
+		if (typeof fun !== "function")
+			throw new TypeError();
+
+		// no value to return if no initial value and an empty array
+		if (len == 0 && arguments.length == 1)
+			throw new TypeError();
+
+		var k = 0;
+		var accumulator;
+		if (arguments.length >= 2)
+		{
+			accumulator = arguments[1];
+		}
+		else
+		{
+			do
+			{
+				if (k in t)
+				{
+					accumulator = t[k++];
+					break;
+				}
+
+				// if array contains no values, no initial value to return
+				if (++k >= len)
+					throw new TypeError();
+			}
+			while (true);
+		}
+
+		while (k < len)
+		{
+			if (k in t)
+				accumulator = fun.call(undefined, accumulator, t[k], k, t);
+			k++;
+		}
+
+		return accumulator;
+	};
+};
 if (!Array.prototype.reduceRight){
 	Array.prototype.reduceRight = function(callbackfn /*, initialValue */){
 		"use strict";
@@ -364,61 +402,8 @@ if (!Array.prototype.forEach)
 	};
 }
 
-if (!Array.prototype.reduce)
-{
-	Array.prototype.reduce = function(fun /*, initialValue */)
-	{
-		"use strict";
 
-		if (this === void 0 || this === null)
-			throw new TypeError();
-
-		var t = Object(this);
-		var len = t.length >>> 0;
-		if (typeof fun !== "function")
-			throw new TypeError();
-
-		// no value to return if no initial value and an empty array
-		if (len == 0 && arguments.length == 1)
-			throw new TypeError();
-
-		var k = 0;
-		var accumulator;
-		if (arguments.length >= 2)
-		{
-			accumulator = arguments[1];
-		}
-		else
-		{
-			do
-			{
-				if (k in t)
-				{
-					accumulator = t[k++];
-					break;
-				}
-
-				// if array contains no values, no initial value to return
-				if (++k >= len)
-					throw new TypeError();
-			}
-			while (true);
-		}
-
-		while (k < len)
-		{
-			if (k in t)
-				accumulator = fun.call(undefined, accumulator, t[k], k, t);
-			k++;
-		}
-
-		return accumulator;
-	};
-};
-
-
-
-// Rule
+//: Rule
 var EISA_CREATERULE = function (l, r) {
 	return new Rule(l, r);
 }
@@ -448,7 +433,7 @@ Rule.prototype.each = function (f) {
 }
 
 
-
+//: eisa-master
 var EISA_eisa = {};
 var eisa = EISA_eisa;
 EISA_eisa.version = 'hoejuu';
@@ -457,7 +442,7 @@ EISA_eisa.log = function(message){};
 
 var EISA_DEBUGTIME = false;
 
-
+//: eisa-module-helpers
 "Eisa module helpers", function(eisa){
 	var module = ESSENTIA_module;
 	eisa.using = function(libs, f){
