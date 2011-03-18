@@ -1,0 +1,75 @@
+﻿body {
+	margin: 0;
+	padding: 0;
+}
+pre, code, samp {
+	font-family: "Consolas", "Bitstream Vera Sans Mono", monospace;
+}
+pre.lstac {
+	color: #252519;
+	margin: 0 0 0 520px;
+	min-width: 500px;
+	background: #f5f5fe;
+	padding: 10px;
+	border-left: 1px solid #e5e5ee;
+	line-height: 1.5;
+	font-size: 80%;
+}
+
+pre.mghl span.keyword {
+	color: #365f91;
+	font-weight: bold;
+}
+pre.mghl span.string {
+	color: #219161
+}
+pre.mghl span.comment {
+	color: #999
+}
+pre.mghl span.operator {
+	color: #983c39
+}
+
+pre.lstac .annotation {
+	white-space: normal;
+	font-size: 110%;
+	clear: both;
+	font-family: "Linux Libertine", "Times New Roman", serif;
+	padding: 6px 0;
+}
+pre.lstac .annotation .content {
+	float: left;
+	width: 480px;
+	margin: 0 0 0 -530px;
+	padding: 5px 15px 5px 25px;
+	border-top: 1px solid #e5e5ee;
+}
+
+pre.lstac .annotation .content p {
+	margin-top: 0
+}
+
+@media (max-width: 1020px){
+	pre.lstac {
+		margin-left: 320px;
+	}
+	pre.lstac .annotation .content {
+		width: 300px;
+		padding: 5px 10px;
+		margin-left: -330px;
+	}
+}
+
+@media (max-width: 820px){
+	pre.lstac {
+		margin-left: 0;
+		min-width: 0;
+	}
+	pre.lstac .annotation .content {
+		float: none;
+		margin: 0 -10px;
+		width: auto;
+		border-bottom: 1px solid #e5e5ee;
+		background: white;
+	}
+}

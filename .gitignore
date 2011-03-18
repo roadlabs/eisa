@@ -6,3 +6,5 @@ gen/*
 smp/*
 ~*
 *.lf.js
+doc/*.html
+.vim/

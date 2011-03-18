@@ -10,20 +10,29 @@ Still work in progress.
 
 Files
 -----------------
-eisa/
-|~lfc/
-|	`-lofn.js     --  Lofn Parser (source -> Eisa AST)
-|~lib/            --  Libraries
-|	|-async.js    --  Asynchronous library using obstructiveness primitives
-|	|-stdenum.lf  --  Standard enumerator library using obstructiveness primitives
-|	`-stl.js      --  Eisa Standard Libarary
-|+shell.wscript/  --  WSH-related shell.
-|-compiler.js     --  Eisa compier (Eisa AST -> JS code)
-|-compiler.rt.js  --  Eisa Compiler Runtime
-`-eisa.rt.js      --  Eisa Runtime
+	eisa/
+	|+doc/            --  Generated annotated sources (see below).
+	|~lfc/
+	|	`-lofn.js     --  Lofn Parser (source -> Eisa AST)
+	|~lib/            --  Libraries
+	|	|-async.js    --  Asynchronous library using obstructiveness primitives
+	|	|-stdenum.lf  --  Standard enumerator library using obstructiveness primitives
+	|	`-stl.js      --  Eisa Standard Libarary
+	|+shell.wscript/  --  WSH-related shell.
+	|-compiler.js     --  Eisa compier (Eisa AST -> JS code)
+	|-compiler.rt.js  --  Eisa Compiler Runtime
+	|-mod.rt.js       --  Essentia (module library. http://github/infinte/essentia)
+	`-eisa.rt.js      --  Eisa Runtime
 
 Maybe I should make it CommonJS-compatible...
 
 Lofn?
 -----------------
 It is included in this project now. Ergo the original Lofn terminated.
+
+About *.js.lsta
+-----------------
+This is the annotation script document for [[lstac]](http://github.com/infinte/lstac). To compile these documents:
+
+ * (on windows) lstac <document> /out:doc/%d%n.html /template:doc/template.html
+ * (**TBD**: other platforms)

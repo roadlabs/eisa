@@ -1,0 +1,4 @@
+﻿:simple-marco @
+	:setvar annotation#%i
+		%c
+
