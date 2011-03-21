@@ -34,7 +34,7 @@ pre.lstac .annotation {
 	white-space: normal;
 	font-size: 110%;
 	clear: both;
-	font-family: "Linux Libertine", "Times New Roman", serif;
+	font-family: "Linux Libertine", "Times New Roman", Times;
 	padding: 6px 0;
 }
 pre.lstac .annotation .content {
