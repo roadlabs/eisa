@@ -35,18 +35,25 @@ pre.lstac .annotation {
 	font-size: 110%;
 	clear: both;
 	font-family: "Linux Libertine", "Times New Roman", Times;
-	padding: 6px 0;
+	padding: 0.5em 0 0.9em;
 }
 pre.lstac .annotation .content {
 	float: left;
 	width: 480px;
 	margin: 0 0 0 -530px;
-	padding: 5px 15px 5px 25px;
+	padding: 0 15px 0 25px;
 	border-top: 1px solid #e5e5ee;
 }
 
 pre.lstac .annotation .content p {
-	margin-top: 0
+	margin: 0.9em 0;
+}
+pre.lstac .annotation.annotation-id-\^ .content, pre.lstac .annotation.annotation-dummy .content {
+	border-top: none;
+	padding-top: none
+}
+pre.lstac .annotation.annotation-dummy .content {
+	padding-top: 0;
 }
 
 @media (max-width: 1020px){

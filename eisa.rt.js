@@ -184,9 +184,6 @@ Number.be = function(s){
 Boolean.be = function(s){
 	return (typeof(s) === 'string') || s instanceof this
 }
-RegExp.convertFrom = function(s){
-	return new RegExp(s);
-}
 
 //: ES5
 // Essential ES5 prototype methods

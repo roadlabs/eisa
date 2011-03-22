@@ -2,4 +2,74 @@
 
 :title lib/stl.js
 
-这是一个标准的 Essentia 模块。
+Eisa 标准库。这些库里面的东西可以直接被 Eisa 生成代码获取，也可以用于本地代码。
+
+这是一个标准的 Essentia 模块。原来的写法和现在很不同。
+
+:section 迭代契约
+		Interable : {
+			getEnumerator : () -> Enumertor
+		}
+		Enumerator : {
+			emit : () -> Object
+		}
+
+	* 一个满足迭代契约的对象，或者说可迭代对象拥有 `getEnumerator` 方法。其返回值是一个迭代器，拥有 `emit` 方法的对象；
+	  - 每次 `emit` 的返回值如果是 `EISA_YIELDVALUE`，那么表示这是一个迭代出的值。返回值的 `values` 属性为各个迭代出的项目（如数组项和索引）；
+	  - 如果不是，则表明迭代结束。异常也表示迭代结束。
+
+:@ eisart
+	`Rule` 类型、 `derive` 原语、`NamedArguments` 类型，来自 [[eisa.rt.js]]。这里只是简单的导入。
+
+:@ composing
+	::section `composing` 函数
+	创建一个对象的派生，还可增加属性。
+
+:@ PrimitiveTypes
+	原始类型，包括：
+	
+	* `Object`
+	* `Number`
+	* `Boolean`
+	* `Function`
+	* `String`
+	* `RegExp`
+	* `Date`
+	* `Math`
+
+	`RegExp` 经过了些修改以支持 `convertFrom`。
+	`Date` 是专门设计的，`new` 方法很烦人，因为我不想用 `eval`，所以弄成了个三角。
+
+	TBD: 转移到特殊的库中
+
+:@ operator
+	::section `operator` 对象
+	把 JS 的运算符封装成函数。
+
+:@ tee
+	::section `tee` 函数
+	`tee(x, f)` 会调用 `f(x)`，但是返回 `x`。
+
+:@ enumerator
+	::section `enumerator` 变换
+	
+	`enumerator` 可以把一个阻塞原变换为一个迭代器函数，满足迭代契约。
+
+	:section 阻塞点
+		* `yield`: 产生一个 emit 动作
+		* `bypass`: 产生一个 emit 动作，但是采用数组做参数，因此支持可变参数
+	
+:@ prototypes
+	::section 原型扩展
+	这些扩展用于辅助 Eisa，不同于 [[eisa.rt.js]] 里的扩展，这里的扩展更倾向于功能，属于“半可选”。
+
+:@ .Array-getEnumerator
+	::section
+	::section `Array.prototype.getEnumerator`
+	满足迭代契约，给数组增加的迭代器方法。这里的代码是手写的。
+
+	`getEnumerator` 产生的对象每次调用 `emit` 方法后会得到数组中的一项，以及对应的索引。
+	
+
+
+[[eisa.rt.js]]: ../eisa.rt.js.html
