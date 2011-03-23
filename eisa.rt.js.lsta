@@ -1,5 +1,5 @@
 ﻿::annot-js eisa.rt.js
-
+:include doc/annot.lsta
 :title Eisa.rt.js
 
 Eisa 运行时, by Belleve Invis
@@ -14,12 +14,12 @@ Eisa 运行时, by Belleve Invis
 :@ module-system-init
 	初始化 Essentia，设置起始目录为 `lib`
 
-:@ Nai
+:a Nai
 	Nai 是 Eisa 的基本对象之一，很多场合——包括变量名检测——都依赖于之。
 
 	Nai 对象的所有属性都是 undefined，甚至 `valueOf` 亦然。本来我想连 `toString` 也设置成 undefined 的，考虑到调试，所以注释掉了这一行。
 
-:@ derive
+:i derive
 	最重要的原语之一（也是唯一没有 `EISA_` 前缀的原语）。这个原语创建某对象的直接派生，而不用使用构造器。
 
 :@ OWNS
@@ -67,8 +67,8 @@ Eisa 运行时, by Belleve Invis
 	* `Array.prototype.filter`
 	* `Array.prototype.forEach`
 
-:@ Rule
-	Rule 对象可看做二元组，包含 `left` 和 `right` 属性。
+:i Rule
+	Rule 可看做二元组，包含 `left` 和 `right` 属性。
 
 	* `reverse` 方法：生成新的 Rule，对调其 `left` 和 `right`
 	* `each` 方法：视作范围，进行迭代

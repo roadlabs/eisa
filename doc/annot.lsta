@@ -1,4 +1,8 @@
-﻿:simple-marco @
-	:setvar annotation#%i
-		%c
-
+﻿:simple-marco a
+	:@ %i
+		:section %i
+			%c
+:simple-marco i
+	:@ %i
+		:section `%i`
+			%c
