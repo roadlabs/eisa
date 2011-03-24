@@ -62,9 +62,9 @@
 		"class":1,"extends":1,"try":1,"const":1,
 		"finally":1,"debugger":1,"super":1
 	};
-	var IDENTIFIER = /^[a-zA-Z$][\w$]*$/;
+	var IDENTIFIER_Q = /^[a-zA-Z$][\w$]*$/;
 	var PART = function(left, right){
-		if (!IDENTIFIER.test(right) || SPECIALNAMES[right] === 1)
+		if (!IDENTIFIER_Q.test(right) || SPECIALNAMES[right] === 1)
 			return left + '[' + STRIZE(right) + ']';
 		else 
 			return left + '.' + right;
@@ -1129,6 +1129,8 @@
 		return flowM.joint();
 	}
 
+
+	// Configuration binding
 	var bindConfig = function (vmConfig) {
 		config = vmConfig;
 		C_NAME = config.varName;
@@ -1194,26 +1196,6 @@
 				}
 				return '\n' + c.indent(ans.join(';\n')) + ';\n';
 			},
-			initGVM: {
-				globally: function(){return 'var ' + c.varName('__global__') + ' = ' + c.thisName()+ ';\n'},
-				itemly: function(env, initInterator, aSrc, initv, libsAcquired){
-					initInterator(function(v, n){
-						initv[n] = v;
-						ScopedScript.registerVariable(env, n, false);
-						aSrc[n] = PART(c.thisName(), n);
-					}, function(lib){
-						if(lib.identity)
-							libsAcquired.push(lib.identity)	
-					}, true);
-				}
-			},
-			dumpGVM: function(initFunction){
-				var aSrc = [];
-				initFunction(function(v, n){
-					aSrc.push(PART(c.thisName() ,n) + ' = ' + c.varName(n)+';');
-				});	
-				return aSrc;
-			},
 			indent: function(s){ return s.replace(/^/gm, '    ') }
 		}
 	}();
@@ -1226,10 +1208,10 @@
 		var enter = trees[0];
 
 		var body = '';
-		var enterText; //= vmConfig.initGVM.globally() + inits.join('\n') + '\n';
-		var exitText; //= vmConfig.dumpGVM(initInterator).join('\n');
+		var enterText;
+		var exitText;
 
-		var getFs = function(generatedSource){
+		var generateExecutable = function(generatedSource){
 			var f = Function('return ' + generatedSource)();
 
 			return {
@@ -1242,7 +1224,7 @@
 		return {
 			compile: function(){
 				body = compileFunctionBody(enter, enterText, exitText, trees);
-				return getFs(body);
+				return generateExecutable(body);
 			},
 			asyncCompile: function(onSuccess, onStep){
 				var queue = ScopedScript.generateQueue(enter, trees, []);
@@ -1256,7 +1238,7 @@
 
 						setTimeout(step, 0);
 					} else {
-						return onSuccess(getFs(body))
+						return onSuccess(generateExecutable(body))
 					}
 				}
 				setTimeout(step, 0);

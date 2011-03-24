@@ -1,3 +1,4 @@
+//: ^
 var ESSENTIA_module = {};
 var module = ESSENTIA_module;
 
@@ -626,21 +627,21 @@ var module = ESSENTIA_module;
   // The main module entrance
   //----------------------------------------------------------------------------
 
-  var scripts = document.getElementsByTagName('script');
-  var loaderScript = scripts[scripts.length - 1];
-  var scriptDir_ = dirname(getScriptAbsoluteSrc(loaderScript));
-  var scriptDir = scriptDir_
+	var scripts = document.getElementsByTagName('script');
+	var loaderScript = scripts[scripts.length - 1];
+	var scriptDir_ = dirname(getScriptAbsoluteSrc(loaderScript));
+	var scriptDir = scriptDir_;
 
-  var mainModId = loaderScript.getAttribute('data-main');
-  if (mainModId) {
-    // top-level id in "data-main" is relative to seajsHost.
-    if (mainModId.indexOf('://') === -1 &&
-        mainModId.indexOf('./') === -1 &&
-        mainModId.charAt(0) !== '/') {
-      mainModId = getHost(scriptDir) + '/' + mainModId;
-    }
-    load([mainModId]);
-  }
+	var mainModId = loaderScript.getAttribute('data-main');
+	if (mainModId) {
+		// top-level id in "data-main" is relative to seajsHost.
+		if (mainModId.indexOf('://') === -1 &&
+				mainModId.indexOf('./') === -1 &&
+				mainModId.charAt(0) !== '/') {
+			mainModId = getHost(scriptDir) + '/' + mainModId;
+		}
+		load([mainModId]);
+	}
 	
 
 
