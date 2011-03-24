@@ -141,7 +141,7 @@
 		}
 	};
 
-	"Common functions", function(){
+	"Transform Common functions", function(){
 		// Standard Schemata
 		schemata(nt['='], function (n, env) {
 			switch (this.left.type) {
@@ -523,7 +523,7 @@
 	}();
 
 	
-	
+	"Obstructive Proto Flow";
 	var oProtoFlow = function(){
 		var block = [];
 		var joint = function(){
@@ -561,12 +561,8 @@
 		}
 	};
 
-	"Obstructive Protos";
-	var compileOProto = function(tree, hook_enter, hook_exit, scopes){
-		if(tree.transformed) return tree.transformed;
-		var backupenv = env;
-		env = tree;
-		g_envs = scopes;
+	"Obstructive Protos Transformer";
+	var transformOProto = function(tree){
 		var cSchemata = vmSchemata.slice(0);
 		var ct = function (node) {
 			if (!node.obstructive)
@@ -580,12 +576,12 @@
 
 		// import flow manager
 		var flowM = oProtoFlow();
-		var ps = flowM.ps;
-		var label = flowM.label;
-		var GOTO = flowM.GOTO;
-		var LABEL = flowM.LABEL;
-		var STOP = flowM.STOP;
-		var OVER = flowM.OVER;
+		var ps = flowM.ps,
+			label = flowM.label,
+			GOTO = flowM.GOTO,
+			LABEL = flowM.LABEL,
+			STOP = flowM.STOP,
+			OVER = flowM.OVER;
 		var pct = function(node){ return ps(ct(node))};
 
 		var lNearest = 0;
@@ -842,7 +838,7 @@
 		// Statements
 		cSchemata[nt.EXPRSTMT] = function(){
 			return this.obstructive ? ct(this.expression) : transform(this.expression);
-		}
+		};
 
 		cSchemata[nt.IF] = function(node){
 			var lElse = label();
@@ -858,7 +854,7 @@
 				(LABEL(lElse));
 			}
 			return '';
-		}
+		};
 		cSchemata[nt.PIECEWISE] = function () {
 			var b = [], l = [], cond = '', lElse;
 			for (var i = this.conditions.length-1; i >= 0; i--) {
@@ -950,7 +946,7 @@
 			(LABEL(lEnd));
 			lNearest = bk;
 			return '';
-		}
+		};
 		cSchemata[nt.FOR] = function () {
 			var lLoop = label();
 			var bk = lNearest;
@@ -1018,13 +1014,7 @@
 				+ ct(this.expression) + ')');
 			return '';
 		};
-
-		cSchemata[nt.THROW] = function () {
-			ps(OVER());
-			ps('throw ' + ct(this.expression));
-			return '';
-		};
-
+		//.obsolete
 		cSchemata[nt.LABEL] = function () {
 			var l = scopeLabels[this.name] = label();
 			pct(this.body);
@@ -1070,8 +1060,17 @@
 			+ T_THIS() + ',' 
 			+ T_ARGS() + ')');
 
-		var s = flowM.joint();
-			
+		return flowM.joint();
+	}
+
+	"Obstructive Protos";
+	var compileOProto = function(tree, hook_enter, hook_exit, scopes){
+		if(tree.transformed) return tree.transformed;
+		var backupenv = env;
+		env = tree;
+		g_envs = scopes;
+		
+		var s = transformOProto(tree);
 
 		ScopedScript.useTemp(tree, 'PROGRESS');
 		ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
