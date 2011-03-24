@@ -86,6 +86,8 @@
 				l.push(each);
 		return l;
 	};
+
+	"Common Functions";
 	var compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
 		if (tree.oProto) return compileOProto(tree, hook_enter, hook_exit, scopes);
 		if (tree.transformed) return tree.transformed;
@@ -128,6 +130,70 @@
 		return s;
 	};
 
+	"Obstructive Protos";
+	var compileOProto = function(tree, hook_enter, hook_exit, scopes){
+		if(tree.transformed) return tree.transformed;
+		var backupenv = env;
+		env = tree;
+		g_envs = scopes;
+		
+		var s = transformOProto(tree);
+
+		ScopedScript.useTemp(tree, 'PROGRESS');
+		ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
+		ScopedScript.useTemp(tree, 'EOF');
+		ScopedScript.useTemp(tree, 'ISFUN');
+		ScopedScript.useTemp(tree, 'COROFUN');
+		ScopedScript.useTemp(tree, 'FUN', ScopedScript.SPECIALTEMP);
+		ScopedScript.useTemp(tree, 'COEXCEPTION', ScopedScript.SPECIALTEMP);
+
+
+		var locals = EISA_UNIQ(tree.locals),
+			vars = [],
+			temps = listTemp(tree);
+		for (var i = 0; i < locals.length; i++)
+			if (!(tree.varIsArg[locals[i]])){
+				if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
+					vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
+				else
+				vars.push(C_NAME(locals[i]));
+			}
+		for (var i = 0; i < temps.length; i++)
+			temps[i] = BIND_TEMP(tree, temps[i]);
+
+		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
+		for (var i = 0; i < pars.length; i++)
+			pars[i] = C_NAME(pars[i])
+		for (var i = 0; i < temppars.length; i++)
+			temppars[i] = C_TEMP(temppars[i])
+
+		s = '(EISA_OBSTRUCTIVE(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
+				THIS_BIND(tree),
+				ARGS_BIND(tree),
+				ARGN_BIND(tree),
+				(temps.length ? 'var ' + temps.join(', '): ''),
+				(vars.length ? 'var ' + vars.join(', ') : ''),
+				C_TEMP('PROGRESS') + '=' + lInital,
+				C_TEMP('EOF') + '= false',
+				hook_enter || '',
+				'return ' + C_TEMP('COROFUN') + ' = function(' + C_TEMP('FUN') + '){'
+					+ JOIN_STMTS([
+						C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function"',
+						'while(' + C_TEMP('PROGRESS') + ') {\n' +
+							INDENT('MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){' + s + '}') +
+						'\n}',
+					]) + '}',
+				hook_exit  || ''
+			]) 
+
+			+ '}}))'
+
+		tree.transformed = s;
+		env = backupenv;
+		return s;
+	};
+
+	"Transforming Utils";
 	var env, g_envs;
 	var vmSchemata = [],
 		schemata = function (tf, trans) {
@@ -1062,69 +1128,6 @@
 
 		return flowM.joint();
 	}
-
-	"Obstructive Protos";
-	var compileOProto = function(tree, hook_enter, hook_exit, scopes){
-		if(tree.transformed) return tree.transformed;
-		var backupenv = env;
-		env = tree;
-		g_envs = scopes;
-		
-		var s = transformOProto(tree);
-
-		ScopedScript.useTemp(tree, 'PROGRESS');
-		ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
-		ScopedScript.useTemp(tree, 'EOF');
-		ScopedScript.useTemp(tree, 'ISFUN');
-		ScopedScript.useTemp(tree, 'COROFUN');
-		ScopedScript.useTemp(tree, 'FUN', ScopedScript.SPECIALTEMP);
-		ScopedScript.useTemp(tree, 'COEXCEPTION', ScopedScript.SPECIALTEMP);
-
-
-		var locals = EISA_UNIQ(tree.locals),
-			vars = [],
-			temps = listTemp(tree);
-		for (var i = 0; i < locals.length; i++)
-			if (!(tree.varIsArg[locals[i]])){
-				if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
-					vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
-				else
-				vars.push(C_NAME(locals[i]));
-			}
-		for (var i = 0; i < temps.length; i++)
-			temps[i] = BIND_TEMP(tree, temps[i]);
-
-		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
-		for (var i = 0; i < pars.length; i++)
-			pars[i] = C_NAME(pars[i])
-		for (var i = 0; i < temppars.length; i++)
-			temppars[i] = C_TEMP(temppars[i])
-
-		s = '(EISA_OBSTRUCTIVE(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
-				THIS_BIND(tree),
-				ARGS_BIND(tree),
-				ARGN_BIND(tree),
-				(temps.length ? 'var ' + temps.join(', '): ''),
-				(vars.length ? 'var ' + vars.join(', ') : ''),
-				C_TEMP('PROGRESS') + '=' + lInital,
-				C_TEMP('EOF') + '= false',
-				hook_enter || '',
-				'return ' + C_TEMP('COROFUN') + ' = function(' + C_TEMP('FUN') + '){'
-					+ JOIN_STMTS([
-						C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function"',
-						'while(' + C_TEMP('PROGRESS') + ') {\n' +
-							INDENT('MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){' + s + '}') +
-						'\n}',
-					]) + '}',
-				hook_exit  || ''
-			]) 
-
-			+ '}}))'
-
-		tree.transformed = s;
-		env = backupenv;
-		return s;
-	};
 
 	var bindConfig = function (vmConfig) {
 		config = vmConfig;
