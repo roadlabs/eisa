@@ -668,7 +668,7 @@ eisa.languages.lofn = lofn;
 			workingScope.code = code = statements();
 			endScope();
 			checkBreakPosition(code);
-			if(s.coroid)
+			if(s.oProto)
 				generateObstructiveness(code);
 			else
 				implicitReturn(code, s);
@@ -687,7 +687,7 @@ eisa.languages.lofn = lofn;
 			var code = s.code = statements(END);
 			endScope();
 			checkBreakPosition(code);
-			if(s.coroid)
+			if(s.oProto)
 				generateObstructiveness(code);
 			advance(END);
 			return new Node(nt.FUNCTION, { tree: s.id });
@@ -828,7 +828,7 @@ eisa.languages.lofn = lofn;
 					} else if(nextIs(AWAIT)) {
 						if(workingScope.unCorable)
 							throw PE("Attempting to use AWAIT in a uncorable function");
-						workingScope.coroid = true;
+						workingScope.oProto = true;
 						var n = new Node(nt.AWAIT, {
 							pattern: name()
 						});

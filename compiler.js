@@ -12,38 +12,37 @@
 	var nt = eisa.ast.NodeType;
 	var ScopedScript = eisa.ast.ScopedScript;
 
-	var config, vmSchemata = [],
-		schemata = function (tf, trans) {
-			vmSchemata[tf] = trans;
+	var config;
+
+	var C_NAME,
+		C_LABELNAME,
+		T_THIS,
+		T_ARGN,
+		T_ARGS,
+		BEFORE_BLOCK,
+		AFTER_BLOCK,
+		JOIN_STMTS,
+		THIS_BIND,
+		ARGS_BIND,
+		ARGN_BIND,
+		C_TEMP,
+		BIND_TEMP,
+		INDENT,
+		currentBlock;
+
+	var SEQ = function(a, b){ return '(' + a + ',' + b + ')' }
+	var STRIZE = function(){
+		var CTRLCHR = function (c) {
+			var n = c.charCodeAt(0);
+			return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
 		};
-
-	var C_NAME
-	var C_LABELNAME
-	var T_THIS
-	var T_ARGN
-	var T_ARGS
-	var BEFORE_BLOCK
-	var AFTER_BLOCK
-	var JOIN_STMTS
-	var THIS_BIND
-	var ARGS_BIND
-	var ARGN_BIND
-	var C_TEMP
-	var BIND_TEMP
-	var INDENT
-	var currentBlock
-	var SEQ = function(a, b){
-		return '(' + a + ',' + b + ')';
-	}
-
-	var CTRLCHR = function (c) {
-		var n = c.charCodeAt(0);
-		return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
-	}
-	var strize = function (s) {
-		return '"' + (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\x00-\x1f\x7f]/g, CTRLCHR).replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
-	};
-
+		return function (s) {
+			return '"' + (s || '')
+				.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+				.replace(/[\x00-\x1f\x7f]/g, CTRLCHR)
+				.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
+		};
+	}();
 	var GETV = function (node, env) { return C_NAME(node.name) };
 	var SETV = function (node, val, env) { return '(' + C_NAME(node.name) + '=' + val + ')' };
 	var SPECIALNAMES = {
@@ -66,1067 +65,1068 @@
 	var IDENTIFIER = /^[a-zA-Z$][\w$]*$/;
 	var PART = function(left, right){
 		if (!IDENTIFIER.test(right) || SPECIALNAMES[right] === 1)
-			return left + '[' + strize(right) + ']';
+			return left + '[' + STRIZE(right) + ']';
 		else 
 			return left + '.' + right;
 	};
 
 
-	var transform;
+
+	var listTemp = function(scope){
+		var l = []
+		for(var each in scope.usedTemps)
+			if(scope.usedTemps[each] === 1)
+				l.push(each);
+		return l;
+	};
+	var listParTemp = function(scope){
+		var l = []
+		for(var each in scope.usedTemps)
+			if(scope.usedTemps[each] === 2)
+				l.push(each);
+		return l;
+	};
+	var compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
+		if (tree.oProto) return compileOProto(tree, hook_enter, hook_exit, scopes);
+		if (tree.transformed) return tree.transformed;
+		env = tree;
+		g_envs = scopes;
+		var s;
+		s = transform(tree.code);
+		var locals = EISA_UNIQ(tree.locals),
+			vars = [],
+			temps = listTemp(tree);
+
+		for (var i = 0; i < locals.length; i++)
+			if (!(tree.varIsArg[locals[i]])){
+				if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
+					vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
+				else
+				vars.push(C_NAME(locals[i]));
+			}
+		for (var i = 0; i < temps.length; i++)
+			temps[i] = BIND_TEMP(tree, temps[i]);
+
+		s = JOIN_STMTS([
+				THIS_BIND(tree),
+				ARGS_BIND(tree),
+				ARGN_BIND(tree),
+				(temps.length ? 'var ' + temps.join(', '): ''),
+				(vars.length ? 'var ' + vars.join(',\n    ') : ''),
+				hook_enter || '',
+				s.replace(/^    /gm, ''),
+				hook_exit || '']);
+
+		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
+		for (var i = 0; i < pars.length; i++)
+			pars[i] = C_NAME(pars[i])
+		for (var i = 0; i < temppars.length; i++)
+			temppars[i] = C_TEMP(temppars[i])
+		s = '(function(' + pars.concat(temppars).join(',') + '){' + s + '})';
 	
-	// Standard Schemata
-	schemata(nt['='], function (n, env) {
-		switch (this.left.type) {
-		case nt.ITEM:
-			return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
-		case nt.MEMBER:
-			return '(' + PART(transform(this.left.left), this.left.right) + '=' + transform(this.right) + ')';
-		case nt.MEMBERREFLECT:
-			return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
-		case nt.VARIABLE:
-			return SETV(this.left, transform(this.right), env);
-		case nt.TEMPVAR:
-			return '(' + C_TEMP(this.left.name) + '=' + transform(this.right) + ')';
-		default:
-			throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
-		}
-	});
-
-	schemata(nt.MEMBER, function () {
-		return '(' + PART(transform(this.left), this.right) + ')';
-	});
-	schemata(nt.MEMBERREFLECT, function () {
-		return '(' + transform(this.left) + '[' + transform(this.right) + '])';
-	});
-	schemata(nt.ITEM, function (node, env) {
-		return '(' + transform(this.left) + ').item(' + transform(this.member) + ')';
-	});
-	schemata(nt.VARIABLE, function (n, env) {
-		return GETV(n, env);
-	});
-	schemata(nt.TEMPVAR, function(){
-		return C_TEMP(this.name);
-	})
-	schemata(nt.GROUP, function(n, env){
-		env.grDepth += 1;
-		var r = '('+transform(this.operand)+')';
-		env.grDepth -= 1;
-		return r;
-	});
-	schemata(nt.THIS, function (nd, e, trees) {
-		var n = e;
-		while (n.rebindThis) n = trees[n.upper - 1];
-		n.thisOccurs = true;
-		return T_THIS(e);
-	});
-	schemata(nt.ARGN, function (nd, e, trees){
-		while(e.rebindThis) e = trees[e.upper - 1];
-		e.argnOccurs = true;
-		e.argsOccurs = true;
-		return T_ARGN();
-	});
-	schemata(nt.ARGUMENTS, function (n, e, trees) {
-		var s = e;
-		while(s.rebindThis) s = trees[s.upper - 1];
-		s.argsOccurs = true;
-		return T_ARGS();
-	});
-	schemata(nt.CALLEE, function () {
-		return '(' + T_ARGS() + '.callee)';
-	});
-	schemata(nt.PARAMETERS, function () {
-		throw new Error('Unexpected parameter group');
-	});
-
-	var C_ARGS = function(node, env, skip, skips){
-		var args = [],
-			names = [];
-		
-		for (var i = (skip || 0); i < node.args.length; i++) {
-			if (node.names[i]) {
-				names.push(strize(node.names[i]), transform(node.args[i]));
-			} else args.push(transform(node.args[i]));
-		};
-
-		if(skip)
-			args = skips.concat(args);
-		if(names.length)
-			args.push('(new NamedArguments(' + names.join(',') + '))');
-
-		return {args: args.join(', ')};
+		tree.transformed = s;
+		return s;
 	};
 
-	schemata(nt.CALL, function (node, env, trees) {
-		var comp, head;
-		var skip = 0, skips = [], pipe;
-
-		// this requires special pipeline processing:
-		var pipelineQ = node.pipeline && node.func // pipe line invocation...
-			&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) // and side-effective.
-
-		if (pipelineQ) {
-			// processing pipelined invocations
-			env.grDepth += 1;
-			skip = 1;
-			ScopedScript.useTemp(env, 'PIPE' + env.grDepth);
-			pipe = C_TEMP('PIPE' + env.grDepth) + '=' + transform(this.args[0])
-			skips = [C_TEMP('PIPE' + env.grDepth)];
+	var env, g_envs;
+	var vmSchemata = [],
+		schemata = function (tf, trans) {
+			vmSchemata[tf] = trans;
+		};
+	var transform = function (node, aux) {
+		if (vmSchemata[node.type]) {
+			return vmSchemata[node.type].call(node, node, env, g_envs, aux);
+		} else {
+			return '{!UNKNOWN}';
 		}
+	};
 
-		switch (this.func.type) {
+	"Common functions", function(){
+		// Standard Schemata
+		schemata(nt['='], function (n, env) {
+			switch (this.left.type) {
 			case nt.ITEM:
-				head = 'EISA_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) + (this.args.length ? ',' : '');
-				break;
-			case nt.DO:
-				if(this.args.length === 1) {
-					var s = env; while(s.rebindThis) s = trees[s.upper - 1];
-					ScopedScript.useTemp(s, 'DOF1');
-					s.thisOccurs = true;
-					s.argsOccurs = true;
-					head = C_TEMP('DOF1') + '(';
-					break;
-				};
+				return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
+			case nt.MEMBER:
+				return '(' + PART(transform(this.left.left), this.left.right) + '=' + transform(this.right) + ')';
+			case nt.MEMBERREFLECT:
+				return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
+			case nt.VARIABLE:
+				return SETV(this.left, transform(this.right), env);
+			case nt.TEMPVAR:
+				return '(' + C_TEMP(this.left.name) + '=' + transform(this.right) + ')';
 			default:
-				head = transform(this.func) + '(';
+				throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
+			}
+		});
+
+		schemata(nt.MEMBER, function () {
+			return '(' + PART(transform(this.left), this.right) + ')';
+		});
+		schemata(nt.MEMBERREFLECT, function () {
+			return '(' + transform(this.left) + '[' + transform(this.right) + '])';
+		});
+		schemata(nt.ITEM, function (node, env) {
+			return '(' + transform(this.left) + ').item(' + transform(this.member) + ')';
+		});
+		schemata(nt.VARIABLE, function (n, env) {
+			return GETV(n, env);
+		});
+		schemata(nt.TEMPVAR, function(){
+			return C_TEMP(this.name);
+		})
+		schemata(nt.GROUP, function(n, env){
+			env.grDepth += 1;
+			var r = '('+transform(this.operand)+')';
+			env.grDepth -= 1;
+			return r;
+		});
+		schemata(nt.THIS, function (nd, e, trees) {
+			var n = e;
+			while (n.rebindThis) n = trees[n.upper - 1];
+			n.thisOccurs = true;
+			return T_THIS(e);
+		});
+		schemata(nt.ARGN, function (nd, e, trees){
+			while(e.rebindThis) e = trees[e.upper - 1];
+			e.argnOccurs = true;
+			e.argsOccurs = true;
+			return T_ARGN();
+		});
+		schemata(nt.ARGUMENTS, function (n, e, trees) {
+			var s = e;
+			while(s.rebindThis) s = trees[s.upper - 1];
+			s.argsOccurs = true;
+			return T_ARGS();
+		});
+		schemata(nt.CALLEE, function () {
+			return '(' + T_ARGS() + '.callee)';
+		});
+		schemata(nt.PARAMETERS, function () {
+			throw new Error('Unexpected parameter group');
+		});
+
+		var C_ARGS = function(node, env, skip, skips){
+			var args = [],
+				names = [];
+			
+			for (var i = (skip || 0); i < node.args.length; i++) {
+				if (node.names[i]) {
+					names.push(STRIZE(node.names[i]), transform(node.args[i]));
+				} else args.push(transform(node.args[i]));
+			};
+
+			if(skip)
+				args = skips.concat(args);
+			if(names.length)
+				args.push('(new NamedArguments(' + names.join(',') + '))');
+
+			return {args: args.join(', ')};
 		};
-		if(pipelineQ) env.grDepth -= 1;
-		var ca = C_ARGS(this, env, skip, skips);
-		comp = ca.args + ')';
-		return '(' + (pipe ? (pipe + ', ') : '') + head + comp + ')';
-	});
-	schemata(nt.OBJECT, function () {
-		var comp = '{';
-		var inits = [],
-			x = 0;
-		for (var i = 0; i < this.args.length; i++) {
-			if (typeof this.names[i] === "string") {
-				inits.push(strize(this.names[i]) + ': ' + transform(this.args[i]));
+
+		schemata(nt.CALL, function (node, env, trees) {
+			var comp, head;
+			var skip = 0, skips = [], pipe;
+
+			// this requires special pipeline processing:
+			var pipelineQ = node.pipeline && node.func // pipe line invocation...
+				&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) // and side-effective.
+
+			if (pipelineQ) {
+				// processing pipelined invocations
+				env.grDepth += 1;
+				skip = 1;
+				ScopedScript.useTemp(env, 'PIPE' + env.grDepth);
+				pipe = C_TEMP('PIPE' + env.grDepth) + '=' + transform(this.args[0])
+				skips = [C_TEMP('PIPE' + env.grDepth)];
+			}
+
+			switch (this.func.type) {
+				case nt.ITEM:
+					head = 'EISA_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) + (this.args.length ? ',' : '');
+					break;
+				case nt.DO:
+					if(this.args.length === 1) {
+						var s = env; while(s.rebindThis) s = trees[s.upper - 1];
+						ScopedScript.useTemp(s, 'DOF1');
+						s.thisOccurs = true;
+						s.argsOccurs = true;
+						head = C_TEMP('DOF1') + '(';
+						break;
+					};
+				default:
+					head = transform(this.func) + '(';
+			};
+			if(pipelineQ) env.grDepth -= 1;
+			var ca = C_ARGS(this, env, skip, skips);
+			comp = ca.args + ')';
+			return '(' + (pipe ? (pipe + ', ') : '') + head + comp + ')';
+		});
+		schemata(nt.OBJECT, function () {
+			var comp = '{';
+			var inits = [],
+				x = 0;
+			for (var i = 0; i < this.args.length; i++) {
+				if (typeof this.names[i] === "string") {
+					inits.push(STRIZE(this.names[i]) + ': ' + transform(this.args[i]));
+				} else {
+					inits.push(STRIZE('' + x) + ': ' + transform(this.args[i]));
+					x++;
+				}
+			}
+			comp += (this.args.length < 4 ? inits.join(',') : '\n' + INDENT(inits.join(',\n')) + '\n');
+			comp += '}'
+			return '(' + comp + ')';
+		});
+		schemata(nt.ARRAY, function () {
+			var comp = '(',
+				args = [],
+				names = [];
+			for (var i = 0; i < this.args.length; i++) {
+				args[i] = transform(this.args[i]);
+			};
+			comp += '[' + args.join(',') + '])';
+			return comp;
+		});
+		schemata(nt.LITERAL, function () {
+			if (typeof this.value === 'string') {
+				return STRIZE(this.value);
+			} else if (typeof this.value === 'number'){
+				return '(' + this.value + ')';	
+			} else return '' + this.value.map;
+		});
+
+		var binoper = function (operator, tfoper) {
+			schemata(nt[operator], function () {
+				return '(' + transform(this.left) + tfoper + transform(this.right) + ')';
+			});
+		};
+		var methodoper = function (operator, method) {
+			schemata(nt[operator], function () {
+				return '(' + transform(this.right) + '.' + method + '(' + transform(this.left) + '))'
+			});
+		};
+		var lmethodoper = function (operator, method) {
+			schemata(nt[operator], function () {
+				return '(' + transform(this.left) + '.' + method + '(' + transform(this.right) + '))';
+			});
+		};
+
+		binoper('+', '+');
+		binoper('-', '-');
+		binoper('*', '*');
+		binoper('/', '/');
+		binoper('%', '%');
+		binoper('<', '<');
+		binoper('>', '>');
+		binoper('<=', '<=');
+		binoper('>=', '>=');
+		binoper('==', '===');
+		binoper('=~', '==');
+		binoper('===', '===');
+		binoper('!==', '!==');
+		binoper('!=', '!==');
+		binoper('!~', '!=');
+		binoper('and', '&&');
+		binoper('or', '||');
+		methodoper('in', 'contains');
+		methodoper('is', 'be');
+		methodoper('as', 'convertFrom');
+		methodoper('>>', 'acceptShiftIn');
+		lmethodoper('<=>', 'compareTo');
+		lmethodoper('<<', 'shiftIn');
+		lmethodoper('of', 'of');
+
+		schemata(nt['~~'], function(){
+			return '(' + transform(this.left) + ',' + transform(this.right) + ')';
+		});
+
+		schemata(nt['->'], function () {
+			return '(EISA_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + '))';
+		});
+		schemata(nt.NEGATIVE, function () {
+			return '(-(' + transform(this.operand) + '))';
+		});
+		schemata(nt.NOT, function () {
+			return '(!(' + transform(this.operand) + '))';
+		});
+
+		schemata(nt.DO, function(nd, e, trees){
+			var s = e;
+			while(s.rebindThis) s = trees[s.upper - 1];
+			ScopedScript.useTemp(s, 'DOF');
+			s.thisOccurs = true;
+			s.argsOccurs = true;
+			return C_TEMP('DOF');
+		});
+
+		schemata(nt.FUNCTION, function (n, e, trees) {
+			var	f = trees[this.tree - 1];
+			var s = (f.oProto ? compileOProto : compileFunctionBody) (f, '', '', trees);
+			return s;
+		});
+
+
+
+		schemata(nt.EXPRSTMT, function(){
+			return transform(this.expression)
+		});
+		schemata(nt.VARDECLS, function(){
+			var a = this.items;
+			var ans = []
+			for(var i = 0; i < a.length; i += 1){
+				if(a[i].initalizer)
+					ans.push( '(' + C_NAME(a[i].name) + '=(' + transform(a[i].initalizer) + '))')
+			}
+			return ans.join(',');
+		});
+		schemata(nt.RETURN, function () {
+			return 'return ' + transform(this.expression);
+		});
+		schemata(nt.THROW, function () {
+			return 'throw ' + transform(this.expression);
+		});
+		schemata(nt.IF, function () {
+			var s = 'if (' + transform(this.condition) + '){';
+			s += transform(this.thenPart);
+			if (this.elsePart) {
+				s += ('} else {') + transform(this.elsePart) + ('}');
 			} else {
-				inits.push(strize('' + x) + ': ' + transform(this.args[i]));
-				x++;
+				s += ('}')
 			}
-		}
-		comp += (this.args.length < 4 ? inits.join(',') : '\n' + INDENT(inits.join(',\n')) + '\n');
-		comp += '}'
-		return '(' + comp + ')';
-	});
-	schemata(nt.ARRAY, function () {
-		var comp = '(',
-			args = [],
-			names = [];
-		for (var i = 0; i < this.args.length; i++) {
-			args[i] = transform(this.args[i]);
-		};
-		comp += '[' + args.join(',') + '])';
-		return comp;
-	});
-	schemata(nt.LITERAL, function () {
-		if (typeof this.value === 'string') {
-			return strize(this.value);
-		} else if (typeof this.value === 'number'){
-			return '(' + this.value + ')';	
-		} else return '' + this.value.map;
-	});
-
-	var binoper = function (operator, tfoper) {
-		schemata(nt[operator], function () {
-			return '(' + transform(this.left) + tfoper + transform(this.right) + ')';
+			return s;
 		});
-	};
-	var methodoper = function (operator, method) {
-		schemata(nt[operator], function () {
-			return '(' + transform(this.right) + '.' + method + '(' + transform(this.left) + '))'
+		schemata(nt.PIECEWISE, function () {
+			var a = [], cond = '';
+			for (var i = 0; i < this.conditions.length; i++) {
+				if (!this.bodies[i]) { // fallthrough condition
+					cond += '(' + transform(this.conditions[i]) + ') || ';
+				} else {
+					cond += '(' + transform(this.conditions[i]) + ')';
+					a.push('if (' + cond + '){' + transform(this.bodies[i]) + '}');
+					cond = '';
+				}
+			}
+
+			var s = a.join(' else ');
+			if (this.otherwise) {
+				s += ' else {' + transform(this.otherwise) + '}';
+			}
+
+			return s;
 		});
-	};
-	var lmethodoper = function (operator, method) {
-		schemata(nt[operator], function () {
-			return '(' + transform(this.left) + '.' + method + '(' + transform(this.right) + '))';
+
+		schemata(nt.CASE, function () {
+			var s = 'switch (' + transform(this.expression) + '){\n';
+			var stmts = [];
+			for (var i = 0; i < this.conditions.length; i++) {
+				stmts.push('  case ' + transform(this.conditions[i]) + ' :')
+				if (this.bodies[i]) {
+					stmts.push(transform(this.bodies[i]));
+					stmts.push('    break;');
+				}
+			}
+
+			if (this.otherwise) {
+				stmts.push('  default:', transform(this.otherwise));
+			}
+			s += stmts.join('\n');
+			s += '\n}';
+			return s;
 		});
-	};
-
-	binoper('+', '+');
-	binoper('-', '-');
-	binoper('*', '*');
-	binoper('/', '/');
-	binoper('%', '%');
-	binoper('<', '<');
-	binoper('>', '>');
-	binoper('<=', '<=');
-	binoper('>=', '>=');
-	binoper('==', '===');
-	binoper('=~', '==');
-	binoper('===', '===');
-	binoper('!==', '!==');
-	binoper('!=', '!==');
-	binoper('!~', '!=');
-	binoper('and', '&&');
-	binoper('or', '||');
-	methodoper('in', 'contains');
-	methodoper('is', 'be');
-	methodoper('as', 'convertFrom');
-	methodoper('>>', 'acceptShiftIn');
-	lmethodoper('<=>', 'compareTo');
-	lmethodoper('<<', 'shiftIn');
-	lmethodoper('of', 'of');
-
-	schemata(nt['~~'], function(){
-		return '(' + transform(this.left) + ',' + transform(this.right) + ')';
-	});
-
-	schemata(nt['->'], function () {
-		return '(EISA_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + '))';
-	});
-	schemata(nt.NEGATIVE, function () {
-		return '(-(' + transform(this.operand) + '))';
-	});
-	schemata(nt.NOT, function () {
-		return '(!(' + transform(this.operand) + '))';
-	});
-
-	schemata(nt.DO, function(nd, e, trees){
-		var s = e;
-		while(s.rebindThis) s = trees[s.upper - 1];
-		ScopedScript.useTemp(s, 'DOF');
-		s.thisOccurs = true;
-		s.argsOccurs = true;
-		return C_TEMP('DOF');
-	});
-
-	schemata(nt.FUNCTION, function (n, e, trees) {
-		var	f = trees[this.tree - 1];
-		var s = (f.coroid ? compileCoroid : compileFunctionBody) (f, '', '', trees);
-		return s;
-	});
-
-
-
-	schemata(nt.EXPRSTMT, function(){
-		return transform(this.expression)
-	});
-	schemata(nt.VARDECLS, function(){
-		var a = this.items;
-		var ans = []
-		for(var i = 0; i < a.length; i += 1){
-			if(a[i].initalizer)
-				ans.push( '(' + C_NAME(a[i].name) + '=(' + transform(a[i].initalizer) + '))')
-		}
-		return ans.join(',');
-	});
-	schemata(nt.RETURN, function () {
-		return 'return ' + transform(this.expression);
-	});
-	schemata(nt.THROW, function () {
-		return 'throw ' + transform(this.expression);
-	});
-	schemata(nt.IF, function () {
-		var s = 'if (' + transform(this.condition) + '){';
-		s += transform(this.thenPart);
-		if (this.elsePart) {
-			s += ('} else {') + transform(this.elsePart) + ('}');
-		} else {
-			s += ('}')
-		}
-		return s;
-	});
-	schemata(nt.PIECEWISE, function () {
-		var a = [], cond = '';
-		for (var i = 0; i < this.conditions.length; i++) {
-			if (!this.bodies[i]) { // fallthrough condition
-				cond += '(' + transform(this.conditions[i]) + ') || ';
+		schemata(nt.REPEAT, function () {
+			return 'do{' + transform(this.body) + '} while(!(' + transform(this.condition) + '))';
+		});
+		schemata(nt.WHILE, function () {
+			return 'while(' + transform(this.condition) + '){' + transform(this.body) + '}';
+		});
+		schemata(nt.FORIN, function (nd, e) {
+			ScopedScript.useTemp(e, 'ENUMERATOR' + this.no);
+			ScopedScript.useTemp(e, 'YV');
+			ScopedScript.useTemp(e, 'YVC');
+			var s_enum = '';
+			s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
+			s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
+			s_enum += ',' + C_TEMP('YVC') + '?(';
+			if(this.pass){
+				s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
 			} else {
-				cond += '(' + transform(this.conditions[i]) + ')';
-				a.push('if (' + cond + '){' + transform(this.bodies[i]) + '}');
-				cond = '';
+				s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
+				for(var i = 1; i < this.vars.length; i += 1){
+					s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
+				}
 			}
-		}
+			s_enum = '(' + s_enum + '):undefined)';
+			var s = 'for(';
+			s += '(' + C_TEMP('ENUMERATOR' + this.no) + '=' + transform(this.range) + '.getEnumerator())'; // get enumerator;
+			s += ',' + s_enum
+			s += ';\n' + C_TEMP('YVC')
+			s += ';' + s_enum;
+			if (this.step) {
+				s += transform(this.step);
+			};
 
-		var s = a.join(' else ');
-		if (this.otherwise) {
-			s += ' else {' + transform(this.otherwise) + '}';
-		}
+			s += '){' + transform(this.body) + '}';
+			return s;
+		});
+		schemata(nt.FOR, function(){
+			var s = 'for(';
+			if (this.start) {
+				s += transform(this.start);
+			};
+			s += ';' + transform(this.condition);
+			s += ';';
+			if (this.step) {
+				s += transform(this.step);
+			};
 
-		return s;
-	});
-
-	schemata(nt.CASE, function () {
-		var s = 'switch (' + transform(this.expression) + '){\n';
-		var stmts = [];
-		for (var i = 0; i < this.conditions.length; i++) {
-			stmts.push('  case ' + transform(this.conditions[i]) + ' :')
-			if (this.bodies[i]) {
-				stmts.push(transform(this.bodies[i]));
-				stmts.push('    break;');
+			s += '){' + transform(this.body) + '}';
+			return s;
+		});
+		schemata(nt.BREAK, function () {
+			return 'break ' + (this.destination ? C_LABELNAME(this.destination) : '');
+		});
+		schemata(nt.LABEL, function () {
+			return C_LABELNAME(this.name) + ':{' + transform(this.body) + '}';
+		});
+		schemata(nt.TRY, function(n, e){
+			var s = 'try {' + transform(this.trystmts) + '}';
+			if(this.catchvar){
+				s += 'catch('+C_NAME(this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
+			} else {
+				ScopedScript.useTemp(e, 'IGNOREDEXCEPTION');
+				s += 'catch(' + C_TEMP('IGNOREDEXCEPTION') + '){}'
 			}
-		}
+			return s;
+		});
+		schemata(nt.USING, function(n, e){
+			ScopedScript.useTemp(e, 'USINGSCOPE');
+			var s = [];
+			s.push( C_TEMP('USINGSCOPE') + '=' + transform(this.expression));
+			for(var i = 0; i < this.names.length; i ++)
+				s.push( C_NAME(this.names[i].name) + '=' + PART(C_TEMP('USINGSCOPE'), this.names[i].name))
+			return JOIN_STMTS(s);
+		});
+		schemata(nt.IMPORT, function(n, e){
+			return C_NAME(this.importVar.name) + '=' + transform(this.expression);
+		});
 
-		if (this.otherwise) {
-			stmts.push('  default:', transform(this.otherwise));
-		}
-		s += stmts.join('\n');
-		s += '\n}';
-		return s;
-	});
-	schemata(nt.REPEAT, function () {
-		return 'do{' + transform(this.body) + '} while(!(' + transform(this.condition) + '))';
-	});
-	schemata(nt.WHILE, function () {
-		return 'while(' + transform(this.condition) + '){' + transform(this.body) + '}';
-	});
-	schemata(nt.FORIN, function (nd, e) {
-		ScopedScript.useTemp(e, 'ENUMERATOR' + this.no);
-		ScopedScript.useTemp(e, 'YV');
-		ScopedScript.useTemp(e, 'YVC');
-		var s_enum = '';
-		s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
-		s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
-		s_enum += ',' + C_TEMP('YVC') + '?(';
-		if(this.pass){
-			s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
-		} else {
-			s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
-			for(var i = 1; i < this.vars.length; i += 1){
-				s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
+		schemata(nt.SCRIPT, function (n) {
+			var a = [];
+			for (var i = 0; i < n.content.length; i++) {
+				if (n.content[i]){
+					a.push(transform(n.content[i]));
+				}
 			}
+			return JOIN_STMTS(a)
+		});
+	}();
+
+	
+	
+	var oProtoFlow = function(){
+		var block = [];
+		var joint = function(){
+			return '\n' + block.join('\n') + '\n';
+		};
+		var labelN = 0;
+		var label_dispatch = function(){
+			return ++labelN
+		};
+
+		var GOTO = function(label){
+			return '{' + C_TEMP('PROGRESS') + '=' + label + '; break MASTERCTRL}'
 		}
-		s_enum = '(' + s_enum + '):undefined)';
-		var s = 'for(';
-		s += '(' + C_TEMP('ENUMERATOR' + this.no) + '=' + transform(this.range) + '.getEnumerator())'; // get enumerator;
-		s += ',' + s_enum
-		s += ';\n' + C_TEMP('YVC')
-		s += ';' + s_enum;
-		if (this.step) {
-			s += transform(this.step);
-		};
-
-		s += '){' + transform(this.body) + '}';
-		return s;
-	});
-	schemata(nt.FOR, function(){
-		var s = 'for(';
-		if (this.start) {
-			s += transform(this.start);
-		};
-		s += ';' + transform(this.condition);
-		s += ';';
-		if (this.step) {
-			s += transform(this.step);
-		};
-
-		s += '){' + transform(this.body) + '}';
-		return s;
-	});
-	schemata(nt.BREAK, function () {
-		return 'break ' + (this.destination ? C_LABELNAME(this.destination) : '');
-	});
-	schemata(nt.LABEL, function () {
-		return C_LABELNAME(this.name) + ':{' + transform(this.body) + '}';
-	});
-	schemata(nt.TRY, function(n, e){
-		var s = 'try {' + transform(this.trystmts) + '}';
-		if(this.catchvar){
-			s += 'catch('+C_NAME(this.catchvar.name)+'){'+transform(this.catchstmts)+'};'
-		} else {
-			ScopedScript.useTemp(e, 'IGNOREDEXCEPTION');
-			s += 'catch(' + C_TEMP('IGNOREDEXCEPTION') + '){}'
+		var STOP = function(label){
+			return C_TEMP('PROGRESS') + '=' + label;
 		}
-		return s;
-	});
-	schemata(nt.USING, function(n, e){
-		ScopedScript.useTemp(e, 'USINGSCOPE');
-		var s = [];
-		s.push( C_TEMP('USINGSCOPE') + '=' + transform(this.expression));
-		for(var i = 0; i < this.names.length; i ++)
-			s.push( C_NAME(this.names[i].name) + '=' + PART(C_TEMP('USINGSCOPE'), this.names[i].name))
-		return JOIN_STMTS(s);
-	});
-	schemata(nt.IMPORT, function(n, e){
-		return C_NAME(this.importVar.name) + '=' + transform(this.expression);
-	});
-
-	schemata(nt.SCRIPT, function (n) {
-		var a = [];
-		for (var i = 0; i < n.content.length; i++) {
-			if (n.content[i]){
-				a.push(transform(n.content[i]));
-			}
+		var LABEL = function(label){
+			return block.push('  case ' + label + ':')
 		}
-		return JOIN_STMTS(a)
-	});
-
-	var compileFunctionBody;
-	var compileCoroid;
-
-	0, function(){
-		var listTemp = function(scope){
-			var l = []
-			for(var each in scope.usedTemps)
-				if(scope.usedTemps[each] === 1)
-					l.push(each);
-			return l;
-		};
-		var listParTemp = function(scope){
-			var l = []
-			for(var each in scope.usedTemps)
-				if(scope.usedTemps[each] === 2)
-					l.push(each);
-			return l;
+		var OVER = function(){
+			return '{ ' + C_TEMP('PROGRESS') + '= 0;' + C_TEMP('COROFUN') + '.stopped = true };'
+		}
+		var pushStatement = function(s){
+			if(s) block.push(INDENT(s) + ';')
 		};
 
-		var env, g_envs;
-		transform = function (node, aux) {
-			if (vmSchemata[node.type]) {
-				return vmSchemata[node.type].call(node, node, env, g_envs, aux);
+		return {
+			ps: pushStatement,
+			GOTO: GOTO,
+			STOP: STOP,
+			LABEL: LABEL,
+			OVER: OVER,
+			label: label_dispatch,
+			joint: joint
+		}
+	};
+
+	"Obstructive Protos";
+	var compileOProto = function(tree, hook_enter, hook_exit, scopes){
+		if(tree.transformed) return tree.transformed;
+		var backupenv = env;
+		env = tree;
+		g_envs = scopes;
+		var cSchemata = vmSchemata.slice(0);
+		var ct = function (node) {
+			if (!node.obstructive)
+				return transform(node);
+			if (cSchemata[node.type]) {
+				return cSchemata[node.type].call(node, node, env, g_envs);
 			} else {
 				return '{!UNKNOWN}';
 			}
 		}
-		compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
-			if (tree.coroid) return compileCoroid(tree, hook_enter, hook_exit, scopes);
-			if (tree.transformed) return tree.transformed;
-			env = tree;
-			g_envs = scopes;
-			var s;
-			s = transform(tree.code);
-			var locals = EISA_UNIQ(tree.locals),
-				vars = [],
-				temps = listTemp(tree);
 
-			for (var i = 0; i < locals.length; i++)
-				if (!(tree.varIsArg[locals[i]])){
-					if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
-						vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
-					else
-					vars.push(C_NAME(locals[i]));
-				}
-			for (var i = 0; i < temps.length; i++)
-				temps[i] = BIND_TEMP(tree, temps[i]);
+		// import flow manager
+		var flowM = oProtoFlow();
+		var ps = flowM.ps;
+		var label = flowM.label;
+		var GOTO = flowM.GOTO;
+		var LABEL = flowM.LABEL;
+		var STOP = flowM.STOP;
+		var OVER = flowM.OVER;
+		var pct = function(node){ return ps(ct(node))};
 
-			s = JOIN_STMTS([
-					THIS_BIND(tree),
-					ARGS_BIND(tree),
-					ARGN_BIND(tree),
-					(temps.length ? 'var ' + temps.join(', '): ''),
-					(vars.length ? 'var ' + vars.join(',\n    ') : ''),
-					hook_enter || '',
-					s.replace(/^    /gm, ''),
-					hook_exit || '']);
+		var lNearest = 0;
+		var scopeLabels = {};
+		lInital = label();
 
-			var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
-			for (var i = 0; i < pars.length; i++)
-				pars[i] = C_NAME(pars[i])
-			for (var i = 0; i < temppars.length; i++)
-				temppars[i] = C_TEMP(temppars[i])
-			s = '(function(' + pars.concat(temppars).join(',') + '){' + s + '})';
-		
-			tree.transformed = s;
-			return s;
+
+		var oSchemata = function(type, func){ cSchemata[type] = func };
+		var obstPartID = function(n){
+			return function(){
+				ScopedScript.useTemp(env, 'OBSTR' + (++n));
+				return C_TEMP('OBSTR' + n);
+			}
+		}(0);
+		var expPart = function(node){
+			var id = obstPartID();
+			ps(id + ' = (' + ct(node) + ')');
+			return id;
 		};
 
-		var coroidFlow = function(){
-			var block = [];
-			var joint = function(){
-				return '\n' + block.join('\n') + '\n';
-			};
-			var labelN = 0;
-			var label_dispatch = function(){
-				return ++labelN
-			};
 
-			var GOTO = function(label){
-				return '{' + C_TEMP('PROGRESS') + '=' + label + '; break MASTERCTRL}'
-			}
-			var STOP = function(label){
-				return C_TEMP('PROGRESS') + '=' + label;
-			}
-			var LABEL = function(label){
-				return block.push('  case ' + label + ':')
-			}
-			var OVER = function(){
-				return '{ ' + C_TEMP('PROGRESS') + '= 0;' + C_TEMP('COROFUN') + '.stopped = true };'
-			}
-			var pushStatement = function(s){
-				if(s) block.push(INDENT(s) + ';')
-			};
 
-			return {
-				ps: pushStatement,
-				GOTO: GOTO,
-				STOP: STOP,
-				LABEL: LABEL,
-				OVER: OVER,
-				label: label_dispatch,
-				joint: joint
-			}
-		}
+		// obstructive expressions
 
-		compileCoroid = function(tree, hook_enter, hook_exit, scopes){
+		oSchemata(nt['='], function (n, env) {
+			switch (this.left.type) {
+				case nt.ITEM:
+					return '(' + expPart(this.left.left) + '.itemset(' + expPart(this.left.member) + ',' + expPart(this.right) + '))';
+				case nt.MEMBER:
+					return '(' + PART(expPart(this.left.left), this.left.right) + '=' + expPart(this.right) + ')';
+				case nt.MEMBERREFLECT:
+					return '((' + expPart(this.left.left) + ')[' + expPart(this.left.right) + ']=' + expPart(this.right) + ')';
+				case nt.VARIABLE:
+					return SETV(this.left, expPart(this.right), env);
+				case nt.TEMPVAR:
+					return '(' + C_TEMP(this.left.name) + '=' + expPart(this.right) + ')';
+				default:
+					throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
+			}
+		});
+
+		var oC_ARGS = function(node, env, skip, skips){
+			var args = [],
+				names = [],
+				comp = '';
+			// if skip is 1, the first item is not named.
+
+			for (var i = (skip || 0); i < node.args.length; i++) {
+				if (node.names[i]) {
+					names.push(STRIZE(node.names[i]), node.args[i]);
+				} else args.push(node.args[i]);
+			}
+
+			for(var i = 0; i < args.length; i++)
+				args[i] = expPart(args[i]);
+			for(var i = 1; i < names.length; i += 2)
+				names[i] = expPart(names[i]);
+
+			if(skip)
+				args = skips.concat(args);
+			if(names.length)
+				args.push('(new NamedArguments(' + names.join(',') + '))')
 			
-			if(tree.transformed) return tree.transformed;
-			var backupenv = env;
-			env = tree;
-			g_envs = scopes;
-			var cSchemata = vmSchemata.slice(0);
-			var ct = function (node) {
-				if (!node.obstructive)
-					return transform(node);
-				if (cSchemata[node.type]) {
-					return cSchemata[node.type].call(node, node, env, g_envs);
-				} else {
-					return '{!UNKNOWN}';
-				}
-			}
+			return {args: args.join(', ')};
+		};
 
-			// import flow manager
-			var flowM = coroidFlow();
-			var ps = flowM.ps;
-			var label = flowM.label;
-			var GOTO = flowM.GOTO;
-			var LABEL = flowM.LABEL;
-			var STOP = flowM.STOP;
-			var OVER = flowM.OVER;
-			var pct = function(node){ return ps(ct(node))};
+		oSchemata(nt.CALL, function (node, env, trees) {
+			if(this.func && this.func.type === nt.AWAIT)
+				return awaitCall.apply(this, arguments);
+			var comp, head;
+			var pipelineQ = node.pipeline && node.func // pipe line invocation...
+				&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) 
+				// and side-effective.
+			var skip = 0;
+			var skips = [];
+			var obstructive;
+			debugger;
 
-			var lNearest = 0;
-			var scopeLabels = {};
-			lInital = label();
-
-
-			var oSchemata = function(type, func){
-				cSchemata[type] = func;
-			};
-			var obstPartID = function(n){
-				return function(){
-					ScopedScript.useTemp(env, 'OBSTR' + (++n));
-					return C_TEMP('OBSTR' + n);
-				}
-			}(0);
-			var expPart = function(node){
-				var id = obstPartID();
-				ps(id + ' = (' + ct(node) + ')');
-				return id;
+			if(pipelineQ){
+				skip = 1;
+				skips = [expPart(this.args[0])];
 			};
 
-
-
-			// obstructive expressions
-
-			oSchemata(nt['='], function (n, env) {
-				switch (this.left.type) {
-					case nt.ITEM:
-						return '(' + expPart(this.left.left) + '.itemset(' + expPart(this.left.member) + ',' + expPart(this.right) + '))';
-					case nt.MEMBER:
-						return '(' + PART(expPart(this.left.left), this.left.right) + '=' + expPart(this.right) + ')';
-					case nt.MEMBERREFLECT:
-						return '((' + expPart(this.left.left) + ')[' + expPart(this.left.right) + ']=' + expPart(this.right) + ')';
-					case nt.VARIABLE:
-						return SETV(this.left, expPart(this.right), env);
-					case nt.TEMPVAR:
-						return '(' + C_TEMP(this.left.name) + '=' + expPart(this.right) + ')';
-					default:
-						throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
-				}
-			});
-
-			var oC_ARGS = function(node, env, skip, skips){
-				var args = [],
-					names = [],
-					comp = '';
-				// if skip is 1, the first item is not named.
-
-				for (var i = (skip || 0); i < node.args.length; i++) {
-					if (node.names[i]) {
-						names.push(strize(node.names[i]), node.args[i]);
-					} else args.push(node.args[i]);
-				}
-
-				for(var i = 0; i < args.length; i++)
-					args[i] = expPart(args[i]);
-				for(var i = 1; i < names.length; i += 2)
-					names[i] = expPart(names[i]);
-
-				if(skip)
-					args = skips.concat(args);
-				if(names.length)
-					args.push('(new NamedArguments(' + names.join(',') + '))')
-				
-				return {args: args.join(', ')};
-			};
-
-			oSchemata(nt.CALL, function (node, env, trees) {
-				if(this.func && this.func.type === nt.AWAIT)
-					return awaitCall.apply(this, arguments);
-				var comp, head;
-				var pipelineQ = node.pipeline && node.func // pipe line invocation...
-					&& !(node.func.type === nt.VARIABLE || node.func.type === nt.THIS || node.func.type === nt.DO) 
-					// and side-effective.
-				var skip = 0;
-				var skips = [];
-				var obstructive;
-				debugger;
-
-				if(pipelineQ){
-					skip = 1;
-					skips = [expPart(this.args[0])];
-				};
-
-				switch (this.func.type) {
-					case nt.ITEM:
-						head = 'EISA_IINVOKE(' + expPart(this.func.left) + ',' + expPart(this.func.member) + (this.args.length ? ',' : '');
+			switch (this.func.type) {
+				case nt.ITEM:
+					head = 'EISA_IINVOKE(' + expPart(this.func.left) + ',' + expPart(this.func.member) + (this.args.length ? ',' : '');
+					break;
+				case nt.DO:
+					if(this.args.length === 1) {
+						var s = env; while(s.rebindThis) s = trees[s.upper - 1];
+						ScopedScript.useTemp(s, 'DOF1');
+						s.thisOccurs = true;
+						s.argsOccurs = true;
+						head = C_TEMP('DOF1') + '(';
 						break;
-					case nt.DO:
-						if(this.args.length === 1) {
-							var s = env; while(s.rebindThis) s = trees[s.upper - 1];
-							ScopedScript.useTemp(s, 'DOF1');
-							s.thisOccurs = true;
-							s.argsOccurs = true;
-							head = C_TEMP('DOF1') + '(';
-							break;
-						};
-					default:
-						head = expPart(this.func) + '(';
-				};
-				var ca = oC_ARGS(this, env, skip, skips);
-				comp = ca.args + ')'
-				return '(' + head + comp + ')';
-			});
-
-			var awaitCall = function(node, env){
-				env.argsOccurs = true;
-				env.thisOccurs = true;
-				var head = PART(C_TEMP('SCHEMATA'), this.func.pattern);
-				var callbody = oC_ARGS(this, env).args;
-				var id = obstPartID();
-				var l = label();
-				ps(STOP(l));
-				ps('return ' + head + '(' 
-						+ T_THIS() + ',' 
-						+ T_ARGS() + ',' 
-						+ '[' + callbody + ']' + ','
-						+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
-					+ ')');
-				LABEL(l);
-				return id;
+					};
+				default:
+					head = expPart(this.func) + '(';
 			};
-			oSchemata(nt.AWAIT, function (n, env) {
-				env.argsOccurs = true;
-				env.thisOccurs = true;
-				var head = PART(C_TEMP('SCHEMATA'), this.pattern);
-				var id = obstPartID();
-				var l = label();
-				ps(STOP(l));
-				ps('return ' + head + '(' 
-						+ T_THIS() + ',' 
-						+ T_ARGS() + ',' 
-						+ '[]' + ','
-						+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
-					+ ')');
-				LABEL(l);
-				return id;
-			});
-			oSchemata(nt.OBJECT, function () {
-				var comp = '{';
-				var inits = [],
-					x = 0;
-				for (var i = 0; i < this.args.length; i++) {
-					if (typeof this.names[i] === 'string') {
-						inits.push(strize(this.names[i]) + ':' + expPart(this.args[i]));
-					} else {
-						inits.push(strize('' + x) + ':' + expPart(this.args[i]));
-						x++;
-					}
-				}
-				comp += inits.join(',');
-				comp += '}'
-				return '(' + comp + ')';
-			});
-			oSchemata(nt.ARRAY, function () {
-				var comp = '(',
-					args = [],
-					names = [];
-				for (var i = 0; i < this.args.length; i++) {
-					args[i] = expPart(this.args[i]);
-				};
-				comp += '[' + args.join(',') + '])';
-				return comp;
-			});
-			oSchemata(nt.MEMBER, function () {
-				return '(' + PART(expPart(this.left), this.right) + ')';
-			});
-			oSchemata(nt.MEMBERREFLECT, function () {
-				return '(' + expPart(this.left) + '[' + expPart(this.right) + '])';
-			});
-			oSchemata(nt.ITEM, function (node, env) {
-				return '(' + expPart(this.left) + ').item(' + expPart(this.member) + ')';
-			});
+			var ca = oC_ARGS(this, env, skip, skips);
+			comp = ca.args + ')'
+			return '(' + head + comp + ')';
+		});
 
-			var binoper = function (operator, tfoper) {
-				oSchemata(nt[operator], function () {
-					return '(' + expPart(this.left) + tfoper + expPart(this.right) + ')';
-				});
-			};
-			var methodoper = function (operator, method) {
-				oSchemata(nt[operator], function () {
-					return '(' + expPart(this.right) + '.' + method + '(' + expPart(this.left) + '))'
-				});
-			};
-			var lmethodoper = function (operator, method) {
-				oSchemata(nt[operator], function () {
-					return '(' + expPart(this.left) + '.' + method + '(' + expPart(this.right) + '))';
-				});
-			};
-
-			binoper('+', '+');
-			binoper('-', '-');
-			binoper('*', '*');
-			binoper('/', '/');
-			binoper('%', '%');
-			binoper('<', '<');
-			binoper('>', '>');
-			binoper('<=', '<=');
-			binoper('>=', '>=');
-			binoper('==', '===');
-			binoper('=~', '==');
-			binoper('===', '===');
-			binoper('!==', '!==');
-			binoper('!=', '!==');
-			binoper('!~', '!=');
-			methodoper('in', 'contains');
-			methodoper('is', 'be');
-			methodoper('as', 'convertFrom');
-			methodoper('>>', 'acceptShiftIn');
-			lmethodoper('<=>', 'compareTo');
-			lmethodoper('<<', 'shiftIn');
-			lmethodoper('of', 'of');
-
-			oSchemata(nt['~~'], function(){
-				return '(' + expPart(this.left) + ',' + expPart(this.right) + ')';
-			});
-
-			oSchemata(nt['->'], function () {
-				return '(EISA_CREATERULE(' + expPart(this.left) + ',' + expPart(this.right) + '))';
-			});
-			oSchemata(nt.NEGATIVE, function () {
-				return '(-(' + expPart(this.operand) + '))';
-			});
-			oSchemata(nt.NOT, function () {
-				return '(!(' + expPart(this.operand) + '))';
-			});
-
-			oSchemata(nt['and'], function(){
-				var left = expPart(this.left);
-				var lElse = label();
-				ps('if(!(' + left + '))' + GOTO(lElse));
-				var right = expPart(this.right);
-				var lEnd = label();
-				ps(GOTO(lEnd));
-				(LABEL(lElse));
-				ps(right + '= false');
-				(LABEL(lEnd));
-				return left + '&&' + right;
-			});
-
-			oSchemata(nt['or'], function(){
-				var left = expPart(this.left);
-				var lElse = label();
-				ps('if(' + left + ')' + GOTO(lElse));
-				var right = expPart(this.right);
-				var lEnd = label();
-				ps(GOTO(lEnd));
-				(LABEL(lElse));
-				ps(right + '= true');
-				(LABEL(lEnd));
-				return left + '||' + right;
-			});
-
-
-			// Statements
-			cSchemata[nt.EXPRSTMT] = function(){
-				return this.obstructive ? ct(this.expression) : transform(this.expression);
-			}
-
-			cSchemata[nt.IF] = function(node){
-				var lElse = label();
-				var lEnd = label();
-				ps('if(!(' + ct(this.condition) + '))' + GOTO(lElse));
-				pct(this.thenPart);
-				if(this.elsePart){
-					ps(GOTO(lEnd));
-					(LABEL(lElse));
-					pct(this.elsePart);
-					(LABEL(lEnd));
-				} else {
-					(LABEL(lElse));
-				}
-				return '';
-			}
-			cSchemata[nt.PIECEWISE] = function () {
-				var b = [], l = [], cond = '', lElse;
-				for (var i = this.conditions.length-1; i >= 0; i--) {
-					if (!this.bodies[i]) { // fallthrough condition
-						l[i] = l[i+1]
-					} else {
-						var li = label();
-						l[i] = li;
-						b[i] = this.bodies[i];
-					}
-				};
-
-				for (var i = 0; i < this.conditions.length; i++) {
-					ps('if (' + ct(this.conditions[i]) + '){\n' + GOTO(li) + '\n}');
-				};
-
-				var lEnd = label();	
-				if (this.otherwise) {
-					var lElse = label()
-					ps(GOTO(lElse));
-				} else {
-					ps(GOTO(lEnd));
-				}
-
-				for(var i = 0; i < b.length; i += 1) if(b[i]) {
-					(LABEL(l[i]))
-					pct(b[i])
-					ps(GOTO(lEnd))
-				}
-
-				if (this.otherwise) {
-					(LABEL(lElse));
-					pct(this.otherwise);
-					ps(GOTO(lEnd));
-				}
-		
-				(LABEL(lEnd));
-				return '';
-			};
-			cSchemata[nt.CASE] = function(){
-				var b = [], l = [], cond = '', lElse, expr = expPart(this.expression);
-				ps(expr);
-				for (var i = this.conditions.length-1; i >= 0; i--) {
-					if (!this.bodies[i]) { // fallthrough condition
-						l[i] = l[i+1]
-					} else {
-						var li = label();
-						l[i] = li;
-						b[i] = this.bodies[i];
-					}
-				};
-				
-				for (var i = 0; i < this.conditions.length; i++) {
-					ps('if (' + expr + '=== (' + ct(this.conditions[i]) + ')){\n' + GOTO(li) + '\n}');
-				};
-
-				var lEnd = label();	
-				if (this.otherwise) {
-					var lElse = label()
-					ps(GOTO(lElse));
-				} else {
-					ps(GOTO(lEnd));
-				}
-
-				for(var i = 0; i < b.length; i += 1) if(b[i]) {
-					(LABEL(l[i]))
-					pct(b[i])
-					ps(GOTO(lEnd))
-				}
-
-				if (this.otherwise) {
-					(LABEL(lElse));
-					pct(this.otherwise);
-					ps(GOTO(lEnd));
-				}
-		
-				(LABEL(lEnd));
-				return '';
-			};
-
-			cSchemata[nt.WHILE] = function(){
-				var lLoop = label();
-				var bk = lNearest;
-				var lEnd = lNearest = label();
-				(LABEL(lLoop));
-				ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd)); 
-				pct(this.body);
-				ps(GOTO(lLoop));
-				(LABEL(lEnd));
-				lNearest = bk;
-				return '';
-			}
-			cSchemata[nt.FOR] = function () {
-				var lLoop = label();
-				var bk = lNearest;
-				var lEnd = lNearest = label();
-				ps(ct(this.start));
-				(LABEL(lLoop));
-				ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd));
-				pct(this.body);
-				ps(ct(this.step));
-				ps(GOTO(lLoop));
-				(LABEL(lEnd));
-				lNearest = bk;
-				return '';
-			};
-			cSchemata[nt.FORIN] = function(node, env){
-				ScopedScript.useTemp(env, 'ENUMERATOR' + this.no);
-				ScopedScript.useTemp(env, 'YV');
-				ScopedScript.useTemp(env, 'YVC');
-				var s_enum = '';
-				s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
-				s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
-				s_enum += ',' + C_TEMP('YVC') + '?(';
-				if(this.pass){
-					s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
-				} else {
-					s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
-					for(var i = 1; i < this.vars.length; i += 1){
-						s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
-					}
-				}
-				s_enum = '(' + s_enum + '):undefined)';
-				var lLoop = label();
-				var bk = lNearest;
-				var lEnd = lNearest = label();
-				ps(C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range) + '.getEnumerator()');
-				ps(s_enum);
-				(LABEL(lLoop));
-				ps('if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd));
-				pct(this.body);
-				ps(s_enum);
-				ps(GOTO(lLoop));
-				(LABEL(lEnd))
-				lNearest = bk;
-				return '';
-		
-			};
-			cSchemata[nt.REPEAT] = function(){
-				var lLoop = label();
-				var bk = lNearest;
-				var lEnd = lNearest = label();
-				(LABEL(lLoop));
-				pct(this.body);
-				ps('if(!(' + ct(this.condition) + '))' + GOTO(lLoop));
-				(LABEL(lEnd));
-				lNearest = bk;
-				return ''
-			};
-		
-
-			cSchemata[nt.RETURN] = function() {
-				ps(OVER());
-				ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
+		var awaitCall = function(node, env){
+			env.argsOccurs = true;
+			env.thisOccurs = true;
+			var head = PART(C_TEMP('SCHEMATA'), this.func.pattern);
+			var callbody = oC_ARGS(this, env).args;
+			var id = obstPartID();
+			var l = label();
+			ps(STOP(l));
+			ps('return ' + head + '(' 
 					+ T_THIS() + ',' 
 					+ T_ARGS() + ',' 
-					+ ct(this.expression) + ')');
-				return '';
+					+ '[' + callbody + ']' + ','
+					+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
+				+ ')');
+			LABEL(l);
+			return id;
+		};
+		oSchemata(nt.AWAIT, function (n, env) {
+			env.argsOccurs = true;
+			env.thisOccurs = true;
+			var head = PART(C_TEMP('SCHEMATA'), this.pattern);
+			var id = obstPartID();
+			var l = label();
+			ps(STOP(l));
+			ps('return ' + head + '(' 
+					+ T_THIS() + ',' 
+					+ T_ARGS() + ',' 
+					+ '[]' + ','
+					+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
+				+ ')');
+			LABEL(l);
+			return id;
+		});
+		oSchemata(nt.OBJECT, function () {
+			var comp = '{';
+			var inits = [],
+				x = 0;
+			for (var i = 0; i < this.args.length; i++) {
+				if (typeof this.names[i] === 'string') {
+					inits.push(STRIZE(this.names[i]) + ':' + expPart(this.args[i]));
+				} else {
+					inits.push(STRIZE('' + x) + ':' + expPart(this.args[i]));
+					x++;
+				}
+			}
+			comp += inits.join(',');
+			comp += '}'
+			return '(' + comp + ')';
+		});
+		oSchemata(nt.ARRAY, function () {
+			var comp = '(',
+				args = [],
+				names = [];
+			for (var i = 0; i < this.args.length; i++) {
+				args[i] = expPart(this.args[i]);
 			};
+			comp += '[' + args.join(',') + '])';
+			return comp;
+		});
+		oSchemata(nt.MEMBER, function () {
+			return '(' + PART(expPart(this.left), this.right) + ')';
+		});
+		oSchemata(nt.MEMBERREFLECT, function () {
+			return '(' + expPart(this.left) + '[' + expPart(this.right) + '])';
+		});
+		oSchemata(nt.ITEM, function (node, env) {
+			return '(' + expPart(this.left) + ').item(' + expPart(this.member) + ')';
+		});
 
-			cSchemata[nt.THROW] = function () {
-				ps(OVER());
-				ps('throw ' + ct(this.expression));
-				return '';
-			};
+		var binoper = function (operator, tfoper) {
+			oSchemata(nt[operator], function () {
+				return '(' + expPart(this.left) + tfoper + expPart(this.right) + ')';
+			});
+		};
+		var methodoper = function (operator, method) {
+			oSchemata(nt[operator], function () {
+				return '(' + expPart(this.right) + '.' + method + '(' + expPart(this.left) + '))'
+			});
+		};
+		var lmethodoper = function (operator, method) {
+			oSchemata(nt[operator], function () {
+				return '(' + expPart(this.left) + '.' + method + '(' + expPart(this.right) + '))';
+			});
+		};
 
-			cSchemata[nt.LABEL] = function () {
-				var l = scopeLabels[this.name] = label();
-				pct(this.body);
-				(LABEL(l));
-				return ''
-			};
-			cSchemata[nt.BREAK] = function () {
-				ps(GOTO(this.destination ? scopeLabels[this.destination] : lNearest));
-				return ''
-			};
-			cSchemata[nt.TRY] = function(){
-				throw new Error('Unable to use TRY statement in a coroutine function.');
-			};
-			cSchemata[nt.USING] = function(n, e){
-				ScopedScript.useTemp(e, 'USINGSCOPE');
-				ps(C_TEMP('USINGSCOPE') + '=' + expPart(this.expression));
-				for(var i = 0; i < this.names.length; i ++)
-					ps(C_NAME(this.names[i].name) + '=' + PART(C_TEMP('USINGSCOPE') , this.names[i].name))
-				return '';
-			};
-			cSchemata[nt.IMPORT] = function(n, e){
-				ps(C_NAME(this.importVar.name) + '=' + expPart(this.expression));
-				return ''
-			};
+		binoper('+', '+');
+		binoper('-', '-');
+		binoper('*', '*');
+		binoper('/', '/');
+		binoper('%', '%');
+		binoper('<', '<');
+		binoper('>', '>');
+		binoper('<=', '<=');
+		binoper('>=', '>=');
+		binoper('==', '===');
+		binoper('=~', '==');
+		binoper('===', '===');
+		binoper('!==', '!==');
+		binoper('!=', '!==');
+		binoper('!~', '!=');
+		methodoper('in', 'contains');
+		methodoper('is', 'be');
+		methodoper('as', 'convertFrom');
+		methodoper('>>', 'acceptShiftIn');
+		lmethodoper('<=>', 'compareTo');
+		lmethodoper('<<', 'shiftIn');
+		lmethodoper('of', 'of');
+
+		oSchemata(nt['~~'], function(){
+			return '(' + expPart(this.left) + ',' + expPart(this.right) + ')';
+		});
+
+		oSchemata(nt['->'], function () {
+			return '(EISA_CREATERULE(' + expPart(this.left) + ',' + expPart(this.right) + '))';
+		});
+		oSchemata(nt.NEGATIVE, function () {
+			return '(-(' + expPart(this.operand) + '))';
+		});
+		oSchemata(nt.NOT, function () {
+			return '(!(' + expPart(this.operand) + '))';
+		});
+
+		oSchemata(nt['and'], function(){
+			var left = expPart(this.left);
+			var lElse = label();
+			ps('if(!(' + left + '))' + GOTO(lElse));
+			var right = expPart(this.right);
+			var lEnd = label();
+			ps(GOTO(lEnd));
+			(LABEL(lElse));
+			ps(right + '= false');
+			(LABEL(lEnd));
+			return left + '&&' + right;
+		});
+
+		oSchemata(nt['or'], function(){
+			var left = expPart(this.left);
+			var lElse = label();
+			ps('if(' + left + ')' + GOTO(lElse));
+			var right = expPart(this.right);
+			var lEnd = label();
+			ps(GOTO(lEnd));
+			(LABEL(lElse));
+			ps(right + '= true');
+			(LABEL(lEnd));
+			return left + '||' + right;
+		});
 
 
-			cSchemata[nt.SCRIPT] = function (n) {
-				var gens;
-				for (var i = 0; i < n.content.length; i++){
-					if (n.content[i]){
-						gens = ct(n.content[i]);
-						if(gens) ps(gens);
-					}
+		// Statements
+		cSchemata[nt.EXPRSTMT] = function(){
+			return this.obstructive ? ct(this.expression) : transform(this.expression);
+		}
+
+		cSchemata[nt.IF] = function(node){
+			var lElse = label();
+			var lEnd = label();
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lElse));
+			pct(this.thenPart);
+			if(this.elsePart){
+				ps(GOTO(lEnd));
+				(LABEL(lElse));
+				pct(this.elsePart);
+				(LABEL(lEnd));
+			} else {
+				(LABEL(lElse));
+			}
+			return '';
+		}
+		cSchemata[nt.PIECEWISE] = function () {
+			var b = [], l = [], cond = '', lElse;
+			for (var i = this.conditions.length-1; i >= 0; i--) {
+				if (!this.bodies[i]) { // fallthrough condition
+					l[i] = l[i+1]
+				} else {
+					var li = label();
+					l[i] = li;
+					b[i] = this.bodies[i];
 				}
 			};
 
+			for (var i = 0; i < this.conditions.length; i++) {
+				ps('if (' + ct(this.conditions[i]) + '){\n' + GOTO(li) + '\n}');
+			};
 
-			LABEL(lInital);
-			ct(tree.code);
+			var lEnd = label();	
+			if (this.otherwise) {
+				var lElse = label()
+				ps(GOTO(lElse));
+			} else {
+				ps(GOTO(lEnd));
+			}
+
+			for(var i = 0; i < b.length; i += 1) if(b[i]) {
+				(LABEL(l[i]))
+				pct(b[i])
+				ps(GOTO(lEnd))
+			}
+
+			if (this.otherwise) {
+				(LABEL(lElse));
+				pct(this.otherwise);
+				ps(GOTO(lEnd));
+			}
+	
+			(LABEL(lEnd));
+			return '';
+		};
+		cSchemata[nt.CASE] = function(){
+			var b = [], l = [], cond = '', lElse, expr = expPart(this.expression);
+			ps(expr);
+			for (var i = this.conditions.length-1; i >= 0; i--) {
+				if (!this.bodies[i]) { // fallthrough condition
+					l[i] = l[i+1]
+				} else {
+					var li = label();
+					l[i] = li;
+					b[i] = this.bodies[i];
+				}
+			};
+			
+			for (var i = 0; i < this.conditions.length; i++) {
+				ps('if (' + expr + '=== (' + ct(this.conditions[i]) + ')){\n' + GOTO(li) + '\n}');
+			};
+
+			var lEnd = label();	
+			if (this.otherwise) {
+				var lElse = label()
+				ps(GOTO(lElse));
+			} else {
+				ps(GOTO(lEnd));
+			}
+
+			for(var i = 0; i < b.length; i += 1) if(b[i]) {
+				(LABEL(l[i]))
+				pct(b[i])
+				ps(GOTO(lEnd))
+			}
+
+			if (this.otherwise) {
+				(LABEL(lElse));
+				pct(this.otherwise);
+				ps(GOTO(lEnd));
+			}
+	
+			(LABEL(lEnd));
+			return '';
+		};
+
+		cSchemata[nt.WHILE] = function(){
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			(LABEL(lLoop));
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd)); 
+			pct(this.body);
+			ps(GOTO(lLoop));
+			(LABEL(lEnd));
+			lNearest = bk;
+			return '';
+		}
+		cSchemata[nt.FOR] = function () {
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			ps(ct(this.start));
+			(LABEL(lLoop));
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lEnd));
+			pct(this.body);
+			ps(ct(this.step));
+			ps(GOTO(lLoop));
+			(LABEL(lEnd));
+			lNearest = bk;
+			return '';
+		};
+		cSchemata[nt.FORIN] = function(node, env){
+			ScopedScript.useTemp(env, 'ENUMERATOR' + this.no);
+			ScopedScript.useTemp(env, 'YV');
+			ScopedScript.useTemp(env, 'YVC');
+			var s_enum = '';
+			s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
+			s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
+			s_enum += ',' + C_TEMP('YVC') + '?(';
+			if(this.pass){
+				s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
+			} else {
+				s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
+				for(var i = 1; i < this.vars.length; i += 1){
+					s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
+				}
+			}
+			s_enum = '(' + s_enum + '):undefined)';
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			ps(C_TEMP('ENUMERATOR' + this.no) + '=' + ct(this.range) + '.getEnumerator()');
+			ps(s_enum);
+			(LABEL(lLoop));
+			ps('if(!(' + C_TEMP('YVC') + '))' + GOTO(lEnd));
+			pct(this.body);
+			ps(s_enum);
+			ps(GOTO(lLoop));
+			(LABEL(lEnd))
+			lNearest = bk;
+			return '';
+	
+		};
+		cSchemata[nt.REPEAT] = function(){
+			var lLoop = label();
+			var bk = lNearest;
+			var lEnd = lNearest = label();
+			(LABEL(lLoop));
+			pct(this.body);
+			ps('if(!(' + ct(this.condition) + '))' + GOTO(lLoop));
+			(LABEL(lEnd));
+			lNearest = bk;
+			return ''
+		};
+	
+
+		cSchemata[nt.RETURN] = function() {
 			ps(OVER());
 			ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
 				+ T_THIS() + ',' 
-				+ T_ARGS() + ')');
+				+ T_ARGS() + ',' 
+				+ ct(this.expression) + ')');
+			return '';
+		};
 
-			var s = flowM.joint();
-				
+		cSchemata[nt.THROW] = function () {
+			ps(OVER());
+			ps('throw ' + ct(this.expression));
+			return '';
+		};
 
-			ScopedScript.useTemp(tree, 'PROGRESS');
-			ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
-			ScopedScript.useTemp(tree, 'EOF');
-			ScopedScript.useTemp(tree, 'ISFUN');
-			ScopedScript.useTemp(tree, 'COROFUN');
-			ScopedScript.useTemp(tree, 'FUN', ScopedScript.SPECIALTEMP);
-			ScopedScript.useTemp(tree, 'COEXCEPTION', ScopedScript.SPECIALTEMP);
+		cSchemata[nt.LABEL] = function () {
+			var l = scopeLabels[this.name] = label();
+			pct(this.body);
+			(LABEL(l));
+			return ''
+		};
+		cSchemata[nt.BREAK] = function () {
+			ps(GOTO(this.destination ? scopeLabels[this.destination] : lNearest));
+			return ''
+		};
+		cSchemata[nt.TRY] = function(){
+			throw new Error('Unable to use TRY statement in a coroutine function.');
+		};
+		cSchemata[nt.USING] = function(n, e){
+			ScopedScript.useTemp(e, 'USINGSCOPE');
+			ps(C_TEMP('USINGSCOPE') + '=' + expPart(this.expression));
+			for(var i = 0; i < this.names.length; i ++)
+				ps(C_NAME(this.names[i].name) + '=' + PART(C_TEMP('USINGSCOPE') , this.names[i].name))
+			return '';
+		};
+		cSchemata[nt.IMPORT] = function(n, e){
+			ps(C_NAME(this.importVar.name) + '=' + expPart(this.expression));
+			return ''
+		};
 
 
-			var locals = EISA_UNIQ(tree.locals),
-				vars = [],
-				temps = listTemp(tree);
-			for (var i = 0; i < locals.length; i++)
-				if (!(tree.varIsArg[locals[i]])){
-					if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
-						vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
-					else
-					vars.push(C_NAME(locals[i]));
+		cSchemata[nt.SCRIPT] = function (n) {
+			var gens;
+			for (var i = 0; i < n.content.length; i++){
+				if (n.content[i]){
+					gens = ct(n.content[i]);
+					if(gens) ps(gens);
 				}
-			for (var i = 0; i < temps.length; i++)
-				temps[i] = BIND_TEMP(tree, temps[i]);
+			}
+		};
 
-			var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
-			for (var i = 0; i < pars.length; i++)
-				pars[i] = C_NAME(pars[i])
-			for (var i = 0; i < temppars.length; i++)
-				temppars[i] = C_TEMP(temppars[i])
+		// -------------------------------------------------------------
 
-			s = '(EISA_OBSTRUCTIVE(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
-					THIS_BIND(tree),
-					ARGS_BIND(tree),
-					ARGN_BIND(tree),
-					(temps.length ? 'var ' + temps.join(', '): ''),
-					(vars.length ? 'var ' + vars.join(', ') : ''),
-					C_TEMP('PROGRESS') + '=' + lInital,
-					C_TEMP('EOF') + '= false',
-					hook_enter || '',
-					'return ' + C_TEMP('COROFUN') + ' = function(' + C_TEMP('FUN') + '){'
-						+ JOIN_STMTS([
-							C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function"',
-							'while(' + C_TEMP('PROGRESS') + ') {\n' +
-								INDENT('MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){' + s + '}') +
-							'\n}',
-						]) + '}',
-					hook_exit  || ''
-				]) 
- 
-				+ '}}))'
+		LABEL(lInital);
+		ct(tree.code);
+		ps(OVER());
+		ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
+			+ T_THIS() + ',' 
+			+ T_ARGS() + ')');
 
-			tree.transformed = s;
-			env = backupenv;
-			return s;
-		}
+		var s = flowM.joint();
+			
 
-	}();
+		ScopedScript.useTemp(tree, 'PROGRESS');
+		ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
+		ScopedScript.useTemp(tree, 'EOF');
+		ScopedScript.useTemp(tree, 'ISFUN');
+		ScopedScript.useTemp(tree, 'COROFUN');
+		ScopedScript.useTemp(tree, 'FUN', ScopedScript.SPECIALTEMP);
+		ScopedScript.useTemp(tree, 'COEXCEPTION', ScopedScript.SPECIALTEMP);
+
+
+		var locals = EISA_UNIQ(tree.locals),
+			vars = [],
+			temps = listTemp(tree);
+		for (var i = 0; i < locals.length; i++)
+			if (!(tree.varIsArg[locals[i]])){
+				if(tree.initHooks[locals[i]] && tree.initHooks[locals[i]].type)
+					vars.push(C_NAME(locals[i]) + '=' + transform(tree.initHooks[locals[i]]))
+				else
+				vars.push(C_NAME(locals[i]));
+			}
+		for (var i = 0; i < temps.length; i++)
+			temps[i] = BIND_TEMP(tree, temps[i]);
+
+		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
+		for (var i = 0; i < pars.length; i++)
+			pars[i] = C_NAME(pars[i])
+		for (var i = 0; i < temppars.length; i++)
+			temppars[i] = C_TEMP(temppars[i])
+
+		s = '(EISA_OBSTRUCTIVE(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
+				THIS_BIND(tree),
+				ARGS_BIND(tree),
+				ARGN_BIND(tree),
+				(temps.length ? 'var ' + temps.join(', '): ''),
+				(vars.length ? 'var ' + vars.join(', ') : ''),
+				C_TEMP('PROGRESS') + '=' + lInital,
+				C_TEMP('EOF') + '= false',
+				hook_enter || '',
+				'return ' + C_TEMP('COROFUN') + ' = function(' + C_TEMP('FUN') + '){'
+					+ JOIN_STMTS([
+						C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function"',
+						'while(' + C_TEMP('PROGRESS') + ') {\n' +
+							INDENT('MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){' + s + '}') +
+						'\n}',
+					]) + '}',
+				hook_exit  || ''
+			]) 
+
+			+ '}}))'
+
+		tree.transformed = s;
+		env = backupenv;
+		return s;
+	};
+
 	var bindConfig = function (vmConfig) {
 		config = vmConfig;
 		C_NAME = config.varName;
@@ -1160,9 +1160,7 @@
 			thisName: function (env) {
 				return '_$_THIS'
 			},
-			argnName: function(){
-				return '_$_ARGND'
-			},
+			argnName: function(){ return '_$_ARGND' },
 			argsName: function(){
 				return '_$_ARGS'
 			},
@@ -1214,9 +1212,7 @@
 				});	
 				return aSrc;
 			},
-			indent: function(s){
-				return s.replace(/^/gm, '    ')
-			}
+			indent: function(s){ return s.replace(/^/gm, '    ') }
 		}
 	}();
 	//============
