@@ -68,16 +68,15 @@ eisa.languages.lofn = lofn;
 		USING = 45,
 		BACKSLASH = 501;
 
-	var Token = function (t, v, p, l, s, i) {
+	var Token = function (t, v, p, s, i) {
 		this.type = t;
 		this.value = v;
 		this.position = p;
-		this.line = l;
 		this.spaced = s;
 		this.isName = i;
 	}
 	Token.prototype.toString = function () {
-		return '~' + this.type + '[' + this.value + ']'
+		return '[' + this.type + ' : ' + this.value + ']'
 	}
 	var condF = function (match, $1) {
 		if ($1.length > 1) {
@@ -215,10 +214,14 @@ eisa.languages.lofn = lofn;
 	var token_err = eisa.CompileErrorMeta("LFC");
 
 	var lex = lofn.lex = function (input) {
-		var tokens = [], tokl = 0, line = 0, options = {};
-		var make = function (t, v, p, as, isn) {
+		var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};
+		var make = function (t, v, p, isn) {
 			contt = false;
-			tokens[tokl++] = new Token(t, v, p, line, as, isn);
+			tokens[tokl++] = new Token(t, // type
+					v, // value
+					p, // position
+					SPACEQ[input.charAt(p - 1)], // space before?
+					isn); // is name?
 		};
 		var option = function(name){
 			options[name] = true
@@ -252,7 +255,7 @@ eisa.languages.lofn = lofn;
 					break;
 
 				case STARTBRACE:
-					make(t, s.charCodeAt(0), n, input.charAt(n-1) === ' ' || input.charAt(n-1) === '\t');
+					make(t, s.charCodeAt(0), n);
 					contt = true;
 					break;
 
@@ -280,7 +283,7 @@ eisa.languages.lofn = lofn;
 				return make(STRING, match.slice(1, -1).replace(/''/g, "'"), n);
 			if(char0 === '"') {
 				if(match.charAt(1) === '"')
-					return make(STRING, match.slice(3, -3), n)
+					return make(STRING, match.slice(3, -3), n);
 				else
 					return make(STRING, lfUnescape(match.slice(1, -1)), n);
 			}
@@ -305,11 +308,9 @@ eisa.languages.lofn = lofn;
 					option(optionname);
 				} if (nme) {
 					var nty = nameType(match);
-					if(nty === OPERATOR)
-						noImplicits();
-					make(nty, match, n, false, true)
-					if(nty === OPERATOR)
-						contt = true;
+					if(nty === OPERATOR) noImplicits();
+					make(nty, match, n, true)
+					if(nty === OPERATOR) contt = true;
 				} else if (strlit) {
 					stringliteral(match, n);
 				} else if (strunfin) {
@@ -891,20 +892,20 @@ eisa.languages.lofn = lofn;
 					// #{number} --> Arguments[number]
 					// #{identifier} --> ArgNS[identifier]
 					var p = advance();
-					if (tokenIs(NUMBER)) {
+					if (tokenIs(NUMBER) && !token.spaced) {
 						return new Node(nt.MEMBERREFLECT, {
 							left : new Node(nt.ARGUMENTS),
 							right : literal()
 						});
-					} else if (token.isName) {
+					} else if (token.isName && !token.spaced) {
 						return new Node(nt.MEMBERREFLECT, {
 							left : new Node(nt.ARGN),
 							right : new Node(nt.LITERAL, {value: name()})
 						});
-					} else if (tokenIs(SHARP)) {
+					} else if (tokenIs(SHARP) && !token.spaced) {
 						advance();
 						return new Node(nt.ARGUMENTS);
-					} else if (tokenIs(MY, '@')){
+					} else if (tokenIs(MY, '@') && !token.spaced){
 						advance();
 						return new Node(nt.ARGN);
 					} else {

@@ -1,28 +1,29 @@
 //: ^
+//: ESSENTIA_module
 var ESSENTIA_module = {};
 var module = ESSENTIA_module;
 
 "Essentia", function(global){
-	var console = global.console;
-	var nihilagit = function(){};
 	var module = ESSENTIA_module;
 
-	var mod_m = {};
-	var Module = function(){}; Module.prototype = mod_m;
 
+	//: console
+	var console = global.console;
 	if(!console) console = {}
-	if(!console.error) console.error = nihilagit;
-	if(!console.warn) console.warn = nihilagit;
+	if(!console.error) console.error = function(){};
+	if(!console.warn) console.warn = function(){};
 
+	//: derive
 	var derive = Object.create ? Object.create : function(){
 		var T = function(){};
 		return function(o){
 			T.prototype = o;
 			return new T
 		}
-	}()
+	}();
 
-	var module = ESSENTIA_module;
+	//: mod_m
+	var mod_m = {};
 
 	//----------------------------------------------------------------------------
 	// The minimal language enhancement
