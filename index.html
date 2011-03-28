@@ -126,10 +126,7 @@
 		}
 		var output = G_TRACE('output');
 		output.stdout = output;
-
-
-
-
+		
 //]]></script>
 
 	<script src="mod.rt.js" type="text/javascript"></script>
@@ -152,7 +149,7 @@
 			var tracel = infoout.tracel;
 			var tracer = infoout.traceraw;
 			EISA_eisa.log = function(message){ tracel(message) }
-			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, ['stdenum', '_devoutput'],
+			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, ['stdenum', output],
 				function(script){
 					script.asyncCompile(function(cm){
 						tracer('[LFC] Generated code:<ol>' + 

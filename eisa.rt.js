@@ -443,19 +443,34 @@ var EISA_DEBUGTIME = false;
 "Eisa module helpers", function(eisa){
 	var module = ESSENTIA_module;
 	eisa.using = function(libs, f){
-		module.provide(libs, function(require){
+		var importings = [], immediates = [];
+		for(var i = 0; i < libs.length; i++){
+			if(typeof libs[i] === 'string')
+				importings.push(libs[i]);
+			else
+				immediates.push(libs[i]);
+		}
+		module.provide(importings, function(require){
 			var vals = {}, obts = {}, YES = {};
-			for(var i = 0; i < libs.length; i++)
+			for(var i = 0; i < importings.length; i++)
 				require.enumerate(libs[i], function(n, v){
 					vals[n] = v;
 					obts[n] = YES
 				});
+			for(var i = 0; i < immediates.length; i++){
+				var immlib = immediates[i];
+				for(var each in immlib)
+					if(EISA_OWNS(immlib, each)){
+						vals[each] = immlib[each];
+						obts[each] = YES
+					};
+			};
 			var enumVars = function(f){
 				for(var each in vals)
 					if(obts[each] === YES)
 						f(vals[each], each)
 			};
-			f(enumVars, vals);
+			f(vals, enumVars);
 		})
 	};
 }(EISA_eisa);
