@@ -30,6 +30,13 @@
 		INDENT,
 		currentBlock;
 
+	var $ = function(template, items_){
+		var a = arguments;
+		return template.replace(/%(\d+)/g, function(m, $1){
+			return a[parseInt($1, 10)] || '';
+		});
+	};
+
 	var SEQ = function(a, b){ return '(' + a + ',' + b + ')' }
 	var STRIZE = function(){
 		var CTRLCHR = function (c) {
@@ -124,7 +131,7 @@
 			pars[i] = C_NAME(pars[i])
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i])
-		s = '(function(' + pars.concat(temppars).join(',') + '){' + s + '})';
+		s = $('(function(%1){%2})',  pars.concat(temppars).join(','), s);
 	
 		tree.transformed = s;
 		return s;
@@ -167,27 +174,29 @@
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i])
 
-		s = '(EISA_OBSTRUCTIVE(function(' + C_TEMP('SCHEMATA') + '){ return function(' + pars.concat(temppars).join(', ') + '){' + JOIN_STMTS([
-				THIS_BIND(tree),
-				ARGS_BIND(tree),
-				ARGN_BIND(tree),
-				(temps.length ? 'var ' + temps.join(', '): ''),
-				(vars.length ? 'var ' + vars.join(', ') : ''),
-				C_TEMP('PROGRESS') + '=' + lInital,
-				C_TEMP('EOF') + '= false',
-				hook_enter || '',
-				'return ' + C_TEMP('COROFUN') + ' = function(' + C_TEMP('FUN') + '){'
-					+ JOIN_STMTS([
-						C_TEMP('ISFUN') + ' = typeof ' + C_TEMP('FUN') + ' === "function"',
-						'while(' + C_TEMP('PROGRESS') + ') {\n' +
-							INDENT('MASTERCTRL: switch(' + C_TEMP('PROGRESS') + '){' + s + '}') +
-						'\n}',
-					]) + '}',
-				hook_exit  || ''
-			]) 
-
-			+ '}}))'
-
+		s = $('(EISA_OBSTRUCTIVE(function(%1){return function(%2){%3}}))', 
+				C_TEMP('SCHEMATA'),
+				pars.concat(temppars).join(', '),
+				JOIN_STMTS([
+					THIS_BIND(tree),
+					ARGS_BIND(tree),
+					ARGN_BIND(tree),
+					(temps.length ? 'var ' + temps.join(', '): ''),
+					(vars.length ? 'var ' + vars.join(', ') : ''),
+					C_TEMP('PROGRESS') + '=' + lInital,
+					C_TEMP('EOF') + '= false',
+					hook_enter || '',
+					$('return %1 = function(%2){%3}',
+						C_TEMP('COROFUN'),
+						C_TEMP('FUN'),
+						JOIN_STMTS([
+							$('%1 = typeof %2 === "function"', C_TEMP('ISFUN'), C_TEMP('FUN')),
+							$('while(%1){\n%2\n}',
+								C_TEMP('PROGRESS'), 
+								INDENT($('MASTERCTRL: switch(%1){%2}', C_TEMP('PROGRESS'), s)))
+						])),
+					hook_exit  || ''
+				]));
 		tree.transformed = s;
 		env = backupenv;
 		return s;
@@ -212,15 +221,15 @@
 		schemata(nt['='], function (n, env) {
 			switch (this.left.type) {
 			case nt.ITEM:
-				return '(' + transform(this.left.left) + '.itemset(' + transform(this.left.member) + ',' + transform(this.right) + '))';
+				return $('(%1.itemset(%2, %3))', transform(this.left.left), transform(this.left.member), transform(this.right));
 			case nt.MEMBER:
-				return '(' + PART(transform(this.left.left), this.left.right) + '=' + transform(this.right) + ')';
+				return $('(%1 = %2)', PART(transform(this.left.left), transform(this.left.member)), transform(this.right));
 			case nt.MEMBERREFLECT:
-				return '((' + transform(this.left.left) + ')[' + transform(this.left.right) + ']=' + transform(this.right) + ')';
+				return $('(%1[%2] = %3)', transform(this.left.left), transform(this.left.member), transform(this.right));
 			case nt.VARIABLE:
 				return SETV(this.left, transform(this.right), env);
 			case nt.TEMPVAR:
-				return '(' + C_TEMP(this.left.name) + '=' + transform(this.right) + ')';
+				return $('(%1 = %2)', C_TEMP(this.left.name), transform(this.right));
 			default:
 				throw new Error('Invalid assignment left value: only VARIABLE, MEMBER, MEMBERREFLECT or ITEM avaliable');
 			}
@@ -230,10 +239,12 @@
 			return '(' + PART(transform(this.left), this.right) + ')';
 		});
 		schemata(nt.MEMBERREFLECT, function () {
-			return '(' + transform(this.left) + '[' + transform(this.right) + '])';
+			return $('(%1[%2])',
+				transform(this.left), transform(this.right));
 		});
 		schemata(nt.ITEM, function (node, env) {
-			return '(' + transform(this.left) + ').item(' + transform(this.member) + ')';
+			return $('(%1).item(%2)', 
+				transform(this.left), transform(this.member));
 		});
 		schemata(nt.VARIABLE, function (n, env) {
 			return GETV(n, env);
@@ -309,7 +320,8 @@
 
 			switch (this.func.type) {
 				case nt.ITEM:
-					head = 'EISA_IINVOKE(' + transform(this.func.left) + ',' + transform(this.func.member) + (this.args.length ? ',' : '');
+					head = $('EISA_IINVOKE(%1, %2%3',
+							transform(this.func.left), transform(this.func.member), (this.args.length ? ',' : ''));
 					break;
 				case nt.DO:
 					if(this.args.length === 1) {
@@ -326,10 +338,10 @@
 			if(pipelineQ) env.grDepth -= 1;
 			var ca = C_ARGS(this, env, skip, skips);
 			comp = ca.args + ')';
-			return '(' + (pipe ? (pipe + ', ') : '') + head + comp + ')';
+			return $('(%1%2%3)', 
+				(pipe ? (pipe + ', ') : ''), head, comp);
 		});
 		schemata(nt.OBJECT, function () {
-			var comp = '{';
 			var inits = [],
 				x = 0;
 			for (var i = 0; i < this.args.length; i++) {
@@ -339,20 +351,16 @@
 					inits.push(STRIZE('' + x) + ': ' + transform(this.args[i]));
 					x++;
 				}
-			}
-			comp += (this.args.length < 4 ? inits.join(',') : '\n' + INDENT(inits.join(',\n')) + '\n');
-			comp += '}'
-			return '(' + comp + ')';
+			};
+			return $('({%1})',
+				(this.args.length < 4 ? inits.join(',') : '\n' + INDENT(inits.join(',\n')) + '\n'));
 		});
 		schemata(nt.ARRAY, function () {
-			var comp = '(',
-				args = [],
-				names = [];
+			var args = [];
 			for (var i = 0; i < this.args.length; i++) {
 				args[i] = transform(this.args[i]);
 			};
-			comp += '[' + args.join(',') + '])';
-			return comp;
+			return $('([%1])', args.join(','));
 		});
 		schemata(nt.LITERAL, function () {
 			if (typeof this.value === 'string') {
@@ -364,17 +372,17 @@
 
 		var binoper = function (operator, tfoper) {
 			schemata(nt[operator], function () {
-				return '(' + transform(this.left) + tfoper + transform(this.right) + ')';
+				return $('(%1%2%3)', transform(this.left), tfoper, transform(this.right));
 			});
 		};
 		var methodoper = function (operator, method) {
 			schemata(nt[operator], function () {
-				return '(' + transform(this.right) + '.' + method + '(' + transform(this.left) + '))'
+				return $('(%3.%2(%1))', transform(this.left), method, transform(this.right));
 			});
 		};
 		var lmethodoper = function (operator, method) {
 			schemata(nt[operator], function () {
-				return '(' + transform(this.left) + '.' + method + '(' + transform(this.right) + '))';
+				return $('(%1.%2(%2))', transform(this.left), method, transform(this.right));
 			});
 		};
 
@@ -404,11 +412,11 @@
 		lmethodoper('of', 'of');
 
 		schemata(nt['~~'], function(){
-			return '(' + transform(this.left) + ',' + transform(this.right) + ')';
+			return $('(%1, %2)', transform(this.left), transform(this.right));
 		});
 
 		schemata(nt['->'], function () {
-			return '(EISA_CREATERULE(' + transform(this.left) + ',' + transform(this.right) + '))';
+			return $('(EISA_CREATERULE(%1, %2))', transform(this.left), transform(this.right));
 		});
 		schemata(nt.NEGATIVE, function () {
 			return '(-(' + transform(this.operand) + '))';
@@ -453,14 +461,10 @@
 			return 'throw ' + transform(this.expression);
 		});
 		schemata(nt.IF, function () {
-			var s = 'if (' + transform(this.condition) + '){';
-			s += transform(this.thenPart);
-			if (this.elsePart) {
-				s += ('} else {') + transform(this.elsePart) + ('}');
-			} else {
-				s += ('}')
-			}
-			return s;
+			return $('if (%1){%2}%3', 
+				transform(this.condition),
+				transform(this.thenPart),
+				this.elsePart ? transform(this.elsePart) : '');
 		});
 		schemata(nt.PIECEWISE, function () {
 			var a = [], cond = '';
@@ -501,53 +505,42 @@
 			return s;
 		});
 		schemata(nt.REPEAT, function () {
-			return 'do{' + transform(this.body) + '} while(!(' + transform(this.condition) + '))';
+			return $('do{%2}while(%1)', transform(this.condition), transform(this.body));
 		});
 		schemata(nt.WHILE, function () {
-			return 'while(' + transform(this.condition) + '){' + transform(this.body) + '}';
+			return $('while(%1){%2}', transform(this.condition), transform(this.body));
 		});
 		schemata(nt.FORIN, function (nd, e) {
 			ScopedScript.useTemp(e, 'ENUMERATOR' + this.no);
 			ScopedScript.useTemp(e, 'YV');
 			ScopedScript.useTemp(e, 'YVC');
-			var s_enum = '';
-			s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
-			s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
-			s_enum += ',' + C_TEMP('YVC') + '?(';
+			var varAssign;
 			if(this.pass){
-				s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
+				varAssign = C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
 			} else {
-				s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
-				for(var i = 1; i < this.vars.length; i += 1){
-					s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
-				}
+				varAssign = C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
+				for(var i = 1; i < this.vars.length; i += 1)
+					varAssign += $(', %1 = %2.values[%3]', C_NAME(this.vars[i].name), C_TEMP('YV'), i);
 			}
-			s_enum = '(' + s_enum + '):undefined)';
-			var s = 'for(';
-			s += '(' + C_TEMP('ENUMERATOR' + this.no) + '=' + transform(this.range) + '.getEnumerator())'; // get enumerator;
-			s += ',' + s_enum
-			s += ';\n' + C_TEMP('YVC')
-			s += ';' + s_enum;
-			if (this.step) {
-				s += transform(this.step);
-			};
-
-			s += '){' + transform(this.body) + '}';
-			return s;
+			var s_enum = $('(%3 = (%1 = %2.emit()) instanceof EISA_YIELDVALUE) ? ( %4 ): undefined',
+				C_TEMP('YV'),
+				C_TEMP('ENUMERATOR' + this.no),
+				C_TEMP('YVC'),
+				varAssign);
+			return $('for(%1 = %2.getEnumerator(), %3; %4; %3%5){%6}',
+				C_TEMP('ENUMERATOR' + this.no),
+				transform(this.range),
+				s_enum,
+				C_TEMP('YVC'),
+				this.step ? transform(this.step) : '',
+				transform(this.body));
 		});
 		schemata(nt.FOR, function(){
-			var s = 'for(';
-			if (this.start) {
-				s += transform(this.start);
-			};
-			s += ';' + transform(this.condition);
-			s += ';';
-			if (this.step) {
-				s += transform(this.step);
-			};
-
-			s += '){' + transform(this.body) + '}';
-			return s;
+			return $('for(%1; %2; %3){%4}',
+				this.start ? transform(this.start) : '',
+				transform(this.condition),
+				this.step ? transform(this.step) : '',
+				transform(this.body));
 		});
 		schemata(nt.BREAK, function () {
 			return 'break ' + (this.destination ? C_LABELNAME(this.destination) : '');
@@ -755,38 +748,37 @@
 		var awaitCall = function(node, env){
 			env.argsOccurs = true;
 			env.thisOccurs = true;
-			var head = PART(C_TEMP('SCHEMATA'), this.func.pattern);
 			var callbody = oC_ARGS(this, env).args;
 			var id = obstPartID();
 			var l = label();
 			ps(STOP(l));
-			ps('return ' + head + '(' 
-					+ T_THIS() + ',' 
-					+ T_ARGS() + ',' 
-					+ '[' + callbody + ']' + ','
-					+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
-				+ ')');
+			ps($('return %1(%2, %3, [%4], function(x){%5 = s; %6()})',
+				PART(C_TEMP('SCHEMATA'), this.func.pattern),
+				T_THIS(),
+				T_ARGS(),
+				callbody,
+				id,
+				C_TEMP('COROFUN')));
 			LABEL(l);
 			return id;
 		};
 		oSchemata(nt.AWAIT, function (n, env) {
 			env.argsOccurs = true;
 			env.thisOccurs = true;
-			var head = PART(C_TEMP('SCHEMATA'), this.pattern);
 			var id = obstPartID();
 			var l = label();
 			ps(STOP(l));
-			ps('return ' + head + '(' 
-					+ T_THIS() + ',' 
-					+ T_ARGS() + ',' 
-					+ '[]' + ','
-					+ 'function(x){' + id + ' = x;' + C_TEMP('COROFUN') + '() }'
-				+ ')');
+			ps($('return %1(%2, %3, [%4], function(x){%5 = s; %6()})',
+				PART(C_TEMP('SCHEMATA'), this.func.pattern),
+				T_THIS(),
+				T_ARGS(),
+				'',
+				id,
+				C_TEMP('COROFUN')));
 			LABEL(l);
 			return id;
 		});
 		oSchemata(nt.OBJECT, function () {
-			var comp = '{';
 			var inits = [],
 				x = 0;
 			for (var i = 0; i < this.args.length; i++) {
@@ -796,20 +788,15 @@
 					inits.push(STRIZE('' + x) + ':' + expPart(this.args[i]));
 					x++;
 				}
-			}
-			comp += inits.join(',');
-			comp += '}'
-			return '(' + comp + ')';
+			};
+			return '({' + inits.join(', ') + '})';
 		});
 		oSchemata(nt.ARRAY, function () {
-			var comp = '(',
-				args = [],
-				names = [];
+			var args = [];
 			for (var i = 0; i < this.args.length; i++) {
 				args[i] = expPart(this.args[i]);
 			};
-			comp += '[' + args.join(',') + '])';
-			return comp;
+			return '([' + args.join(', ') + '])';
 		});
 		oSchemata(nt.MEMBER, function () {
 			return '(' + PART(expPart(this.left), this.right) + ')';
@@ -1031,19 +1018,21 @@
 			ScopedScript.useTemp(env, 'ENUMERATOR' + this.no);
 			ScopedScript.useTemp(env, 'YV');
 			ScopedScript.useTemp(env, 'YVC');
-			var s_enum = '';
-			s_enum += C_TEMP('YV') + '=(' + C_TEMP('ENUMERATOR' + this.no) + ').emit()'
-			s_enum += ',' + C_TEMP('YVC') + '=' + C_TEMP('YV') + ' instanceof EISA_YIELDVALUE';
-			s_enum += ',' + C_TEMP('YVC') + '?(';
+
+			var varAssign;
 			if(this.pass){
-				s_enum += C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
+				varAssign = C_NAME(this.passVar.name) + '=' + C_TEMP('YV') + '.values'
 			} else {
-				s_enum += C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
-				for(var i = 1; i < this.vars.length; i += 1){
-					s_enum += ', ' + C_NAME(this.vars[i].name) + '=' + C_TEMP('YV') + '.values[' + i + ']' ; // v[i] = enumerator.values[i]
-				}
+				varAssign = C_NAME(this.vars[0].name) + '=' + C_TEMP('YV') + '.value' ; // v[0] = enumerator.value
+				for(var i = 1; i < this.vars.length; i += 1)
+					varAssign += $(', %1 = %2.values[%3]', C_NAME(this.vars[i].name), C_TEMP('YV'), i);
 			}
-			s_enum = '(' + s_enum + '):undefined)';
+			var s_enum = $('(%3 = (%1 = %2.emit()) instanceof EISA_YIELDVALUE) ? ( %4 ): undefined',
+				C_TEMP('YV'),
+				C_TEMP('ENUMERATOR' + this.no),
+				C_TEMP('YVC'),
+				varAssign);
+
 			var lLoop = label();
 			var bk = lNearest;
 			var lEnd = lNearest = label();
@@ -1059,6 +1048,7 @@
 			return '';
 	
 		};
+
 		cSchemata[nt.REPEAT] = function(){
 			var lLoop = label();
 			var bk = lNearest;
@@ -1074,10 +1064,11 @@
 
 		cSchemata[nt.RETURN] = function() {
 			ps(OVER());
-			ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
-				+ T_THIS() + ',' 
-				+ T_ARGS() + ',' 
-				+ ct(this.expression) + ')');
+			ps($('return %1["return"](%2, %3, %4)',
+				C_TEMP('SCHEMATA'),
+				T_THIS(),
+				T_ARGS(),
+				ct(this.expression)));
 			return '';
 		};
 		//.obsolete
@@ -1208,8 +1199,8 @@
 		var enter = trees[0];
 
 		var body = '';
-		var enterText;
-		var exitText;
+		var enterText = "var undefined;";
+		var exitText = "";
 
 		var generateExecutable = function(generatedSource){
 			var f = Function('return ' + generatedSource)();
@@ -1232,7 +1223,9 @@
 				var i = 0, body;
 				var step = function(){
 					if(i < queue.length){
-						body = compileFunctionBody(queue[i], queue[i] === enter ? enterText : '', queue[i] === enter ? exitText : '', trees);
+						body = compileFunctionBody(queue[i], 
+							queue[i] === enter ? enterText : '', 
+							queue[i] === enter ? exitText : '', trees);
 						onStep(queue[i], i, body);
 						i += 1;
 
@@ -1247,7 +1240,7 @@
 	};
 
 
-	eisa.Script = function(source, language, config, libraries, callback){
+	eisa.Script = function(source, language, config, libraries, callback) {
 
 		var libs = ['stl', 'mod'].concat(libraries || [])
 
