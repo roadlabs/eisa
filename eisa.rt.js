@@ -250,25 +250,18 @@ if (!Array.prototype.reduce)
 
 		var k = 0;
 		var accumulator;
-		if (arguments.length >= 2)
-		{
+		if (arguments.length >= 2) {
 			accumulator = arguments[1];
-		}
-		else
-		{
-			do
-			{
-				if (k in t)
-				{
+		} else {
+			do {
+				if (k in t) {
 					accumulator = t[k++];
 					break;
 				}
 
 				// if array contains no values, no initial value to return
-				if (++k >= len)
-					throw new TypeError();
-			}
-			while (true);
+				if (++k >= len) throw new TypeError();
+			} while (true);
 		}
 
 		while (k < len)

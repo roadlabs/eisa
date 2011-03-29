@@ -26,15 +26,11 @@ Eisa 标准库。这些库里面的东西可以直接被 Eisa 生成代码获取
 	创建一个对象的派生，还可增加属性。
 
 :@ PrimitiveTypes
-	原始类型，包括：
+	包装过的原始类型，包括：
 	
-	* `Object`
-	* `Number`
-	* `Boolean`
-	* `Function`
-	* `String`
-	* `RegExp`
+	* `Array`
 	* `Date`
+	* `RegExp`
 	* `Math`
 
 	`RegExp` 经过了些修改以支持 `convertFrom`。

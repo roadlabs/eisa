@@ -223,9 +223,9 @@
 			case nt.ITEM:
 				return $('(%1.itemset(%2, %3))', transform(this.left.left), transform(this.left.member), transform(this.right));
 			case nt.MEMBER:
-				return $('(%1 = %2)', PART(transform(this.left.left), transform(this.left.member)), transform(this.right));
+				return $('(%1 = %2)', PART(transform(this.left.left), this.left.right), transform(this.right));
 			case nt.MEMBERREFLECT:
-				return $('(%1[%2] = %3)', transform(this.left.left), transform(this.left.member), transform(this.right));
+				return $('(%1[%2] = %3)', transform(this.left.left), transform(this.left.right), transform(this.right));
 			case nt.VARIABLE:
 				return SETV(this.left, transform(this.right), env);
 			case nt.TEMPVAR:
