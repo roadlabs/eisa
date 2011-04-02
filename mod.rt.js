@@ -185,7 +185,6 @@ var module = ESSENTIA_module;
 							if (remain === 0) cb();
 						}, true);
 					};
-
 					if (--remain === 0) cb();
 				});
 
@@ -450,18 +449,19 @@ var module = ESSENTIA_module;
 		var derivatives = {};
 
 		if(!count) callback(require);
-		for(var i = 0; i < deps.length; i++) if(!(mod = providedMods[deps[i]]).exports) {
-			setExports(mod, {
-				uri: deps[i],
-				deps: mod.dependencies,
-				prefix: mod.prefix,
-				parent: sandbox
-			}, function(id){
+		for(var i = 0; i < deps.length; i++)
+			if(providedMods[deps[i]] && !(mod = providedMods[deps[i]]).exports) {
+				setExports(mod, {
+					uri: deps[i],
+					deps: mod.dependencies,
+					prefix: mod.prefix,
+					parent: sandbox
+				}, function(id){
+					if(!--count) callback(require);
+				}, deps[i])
+			} else {
 				if(!--count) callback(require);
-			}, deps[i])
-		} else {
-			if(!--count) callback(require);
-		};
+			}
 
 		return require;
 	}
