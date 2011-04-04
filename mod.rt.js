@@ -106,7 +106,7 @@ var module = ESSENTIA_module;
 	// { id: string, timestamp: number }
 	var pendingModLegacy = null;
 	var cacheTakenTime = 10;
-	var isLegacy = !+'\v1'; // IE6-8
+	var isLegacy = /*@cc_on!@*/false; // IE6-8
 
 	// Cache for storing prefix.
 	var prefixCache = null;
