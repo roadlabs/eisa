@@ -752,7 +752,7 @@
 			var id = obstPartID();
 			var l = label();
 			ps(STOP(l));
-			ps($('return %1(%2, %3, [%4], function(x){%5 = s; %6()})',
+			ps($('return %1(%2, %3, [%4], function(x){%5 = x; %6()})',
 				PART(C_TEMP('SCHEMATA'), this.func.pattern),
 				T_THIS(),
 				T_ARGS(),
@@ -768,7 +768,7 @@
 			var id = obstPartID();
 			var l = label();
 			ps(STOP(l));
-			ps($('return %1(%2, %3, [%4], function(x){%5 = s; %6()})',
+			ps($('return %1(%2, %3, [%4], function(x){%5 = x; %6()})',
 				PART(C_TEMP('SCHEMATA'), this.func.pattern),
 				T_THIS(),
 				T_ARGS(),
