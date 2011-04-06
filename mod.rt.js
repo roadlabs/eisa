@@ -64,15 +64,14 @@ var module = ESSENTIA_module;
 	var indexOf = Array.prototype.indexOf ?
 		function(array, item) {
 			return array.indexOf(item);
-		} :
-	function(array, item) {
-		for (var i = 0, l = array.length; i < l; i++) {
-			if (array[i] === item) {
-				return i;
+		} : function(array, item) {
+			for (var i = 0, l = array.length; i < l; i++) {
+				if (array[i] === item) {
+					return i;
+				}
 			}
-		}
-		return -1;
-	};
+			return -1;
+		};
 
 
 
@@ -157,6 +156,7 @@ var module = ESSENTIA_module;
 	}
 
 
+	//: provide
 	/**
 	 * Provides modules to the environment.
 	 * @param {Array.<string>} ids An array composed of module id.
@@ -200,13 +200,6 @@ var module = ESSENTIA_module;
 	}
 
 
-
-	/**
-	 * Declares a module.
-	 * 	id      optional {string} The module canonical id.
-	 * 	deps    {Array.<string>} The module dependencies.
-	 * 	factory {function()|Object} The module factory function.
-	 */
 	function Declare(tfm, delayableQ){
 		return function (id, deps, factory) {
 			// Overloads arguments.
@@ -278,6 +271,7 @@ var module = ESSENTIA_module;
 		}
 	}
 
+	//: declare
 	var declare = Declare(function(f){
 		return function(r, x, m, finis){
 			var ret = f(r, x, m);
@@ -285,6 +279,7 @@ var module = ESSENTIA_module;
 			return ret;
 		}
 	});
+	//: declare_
 	var declare_ = Declare(function(f){return f});
 
 
