@@ -1,18 +1,19 @@
-﻿::annot-js eisa.rt.js
+﻿:include !:/common.lsta
+::annot-js eisa.rt.js
 :include doc/annot.lsta
 :title Eisa.rt.js
 
-Eisa 运行时, by Belleve Invis
+[[Eisa]] 运行时, by Belleve Invis
 
 :section （很无力的）命名约定
+	
 	* 和 Eisa 运行时密切相关的部分，均有以 `EISA_` 开首的全局变量。考虑到 Eisa 生成代码，仍然使用全局变量。
 	
-	  TBD: 改用 commonJS 相似方式，在动态生成代码中显式导入。
+	  TBD: 改用 [[commonJS]] 相似方式，在动态生成代码中显式导入。
 	* 仅用于生成代码，几乎不可能被用户代码调用者，全大写表示之。
 	* 可能被第三方调用者，包含普通命名格式。
-
 :@ module-system-init
-	初始化 Essentia，设置起始目录为 `lib`
+	初始化 [[Essentia]]，设置起始目录为 `lib`
 
 :a Nai
 	Nai 是 Eisa 的基本对象之一，很多场合——包括变量名检测——都依赖于之。

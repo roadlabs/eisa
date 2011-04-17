@@ -1,8 +1,15 @@
-﻿:simple-marco a
-	:@ %i
-		:section %i
+﻿:. marcos
+	:simple-marco a
+		:@ %i
+			::section %i
 			%c
-:simple-marco i
-	:@ %i
-		:section `%i`
+	:simple-marco i
+		:@ %i
+			::section `%i`
 			%c
+
+:. references
+	:ref
+		[[eisa]]: http://github.com/infinte/eisa
+		[[commonjs]]: http://commonjs.org/
+		[[essentia]]: http://github.com/infinte/essentia

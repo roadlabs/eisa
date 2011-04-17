@@ -442,7 +442,7 @@ var EISA_DEBUGTIME = false;
 				importings.push(libs[i]);
 			else
 				immediates.push(libs[i]);
-		}
+		};
 		module.provide(importings, function(require){
 			var vals = {}, obts = {}, YES = {};
 			for(var i = 0; i < importings.length; i++)
@@ -464,6 +464,43 @@ var EISA_DEBUGTIME = false;
 						f(vals[each], each)
 			};
 			f(vals, enumVars);
-		})
+		});
 	};
+	
+	eisa.Script = function(source, language, config, libraries, callback) {
+
+		var libs = ['stl', 'mod'].concat(libraries || [])
+
+		var inita = eisa.using(libs, function(initvs, inita){
+			var tokens = language.lex(source);
+			var ast = language.parse(tokens, source, inita);
+
+			// ast = JSON.parse(JSON.stringify(ast));
+
+			config = config || eisa.standardTransform
+		
+			var lfcr;
+
+			tokens = null;	
+
+			return callback({
+				compile: function(){
+					// this.setGlobalVariable = null;
+					lfcr = language.Compiler(ast, config).compile(); 
+					return lfcr;
+				},
+				asyncCompile: function(onSuccess, onStep){
+					language.Compiler(ast, config).asyncCompile(
+						function(cm){
+							lfcr = cm;
+							onSuccess.apply(this, arguments)
+						}, onStep);
+				},
+				start: function(){
+					if(!lfcr) this.compile();
+					lfcr.wrappedF.apply(initvs, arguments);
+				}
+			})
+		});
+	};	
 }(EISA_eisa);

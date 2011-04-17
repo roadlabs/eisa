@@ -152,10 +152,11 @@
 			var tracel = infoout.tracel;
 			var tracer = infoout.traceraw;
 			EISA_eisa.log = function(message){ tracel(message) }
-			var script = new eisa.Script(document.getElementById('input').value, eisa.languages.lofn, null, ['internl', 'stdenum', output, {
-				log: function(){console.log.apply(console, arguments)}		
-			}],
-				function(script){
+			var script = new eisa.Script(document.getElementById('input').value,
+					eisa.languages.lofn,
+					null,
+					['internl', 'stdenum', output, { log: function(){console.log.apply(console, arguments)} }],
+					function(script){
 					script.asyncCompile(function(cm){
 						tracer('[LFC] Generated code:<ol>' + 
 							cm.generatedSource
