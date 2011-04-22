@@ -1139,7 +1139,7 @@
 		currentBlock = null;
 	};
 	// Default Lofn compilation config
-	eisa.standardTransform = function () {
+	var standardTransform = function () {
 		var _indent = 0,
 			c;
 		return c = {
@@ -1193,7 +1193,7 @@
 	//============
 	eisa.languages.lofn.Compiler = function (ast, vmConfig) {
 
-		bindConfig(vmConfig);
+		bindConfig(vmConfig || standardTransform);
 		
 		var trees = ast.scopes;
 		var enter = trees[0];

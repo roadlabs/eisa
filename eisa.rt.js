@@ -466,26 +466,20 @@ var EISA_DEBUGTIME = false;
 			f(vals, enumVars);
 		});
 	};
-	
+}(EISA_eisa);
+
+//: eisa-script
+"Eisa Script", function(eisa){
 	eisa.Script = function(source, language, config, libraries, callback) {
 
-		var libs = ['stl', 'mod'].concat(libraries || [])
+		var libs = ['stl', 'mod'].concat(libraries || []);
 
-		var inita = eisa.using(libs, function(initvs, inita){
-			var tokens = language.lex(source);
-			var ast = language.parse(tokens, source, inita);
-
-			// ast = JSON.parse(JSON.stringify(ast));
-
-			config = config || eisa.standardTransform
-		
+		eisa.using(libs, function(initvs, inita){
+			var ast = language.parse(language.lex(source), source, inita);
 			var lfcr;
-
-			tokens = null;	
 
 			return callback({
 				compile: function(){
-					// this.setGlobalVariable = null;
 					lfcr = language.Compiler(ast, config).compile(); 
 					return lfcr;
 				},

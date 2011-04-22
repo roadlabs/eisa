@@ -1,5 +1,4 @@
-﻿:include !:/common.lsta
-::annot-js eisa.rt.js
+﻿::annot-js eisa.rt.js
 :include doc/annot.lsta
 :title Eisa.rt.js
 
@@ -13,7 +12,7 @@
 	* 仅用于生成代码，几乎不可能被用户代码调用者，全大写表示之。
 	* 可能被第三方调用者，包含普通命名格式。
 :@ module-system-init
-	初始化 [[Essentia]]，设置起始目录为 `lib`
+	初始化 [[Necessaria]]，设置起始目录为 `lib`
 
 :a Nai
 	Nai 是 Eisa 的基本对象之一，很多场合——包括变量名检测——都依赖于之。
@@ -79,3 +78,6 @@
 
 :@ eisa-module-helpers
 	这里接合 Essentia，使用 `ESSENTIA_module` 的 `provide` 导入模块并分析导入接口。
+
+:@ eisa-script
+	这里封装了编译器和语言的细节，提供简单的 `Script` 接口
