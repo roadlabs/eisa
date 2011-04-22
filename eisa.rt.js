@@ -1,7 +1,7 @@
 //: ^
 // Eisa Runtime, by Belleve Invis
 //: module-system-init
-ESSENTIA_module.globalStart("lib/");
+NECESSARIA_module.globalStart("lib/");
 
 //: Nai
 var Nai = function(){};
@@ -434,7 +434,7 @@ var EISA_DEBUGTIME = false;
 
 //: eisa-module-helpers
 "Eisa module helpers", function(eisa){
-	var module = ESSENTIA_module;
+	var module = NECESSARIA_module;
 	eisa.using = function(libs, f){
 		var importings = [], immediates = [];
 		for(var i = 0; i < libs.length; i++){

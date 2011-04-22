@@ -2,18 +2,18 @@
 :include doc/annot.lsta
 :include doc/refs.lsta
 :title mod.rt.js
-:subtitle or Essentia.
+:subtitle or Necessaria.
 
-Essentia 是基于 Commonjs （设计中的）模块规范构建的模块系统。Essentia 和 eisa.rt.js 无关，可以单独使用。
+Necessaria 是基于 Commonjs （设计中的）模块规范构建的模块系统。Necessaria 和 eisa.rt.js 无关，可以单独使用。
 
-:@ 	ESSENTIA_module
-	`ESSENTIA_module` 是有全局唯一性的对外接口。**请无论如何都使用它，而不是 `module`。**
+:@ 	NECESSARIA_module
+	`NECESSARIA_module` 是有全局唯一性的对外接口。**请无论如何都使用它，而不是 `module`。**
 
 :@	console
 	没有 `console` 时准备一个。
 
 :@	derive
-	[[eisa.rt.js]] 的 `derive`。我说过了，Essentia 是单独使用的。
+	[[eisa.rt.js]] 的 `derive`。我说过了，Necessaria 是单独使用的。
 
 :@	mod_m
 	:api Module

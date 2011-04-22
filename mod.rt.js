@@ -1,10 +1,10 @@
 //: ^
-//: ESSENTIA_module
-var ESSENTIA_module = {};
-var module = ESSENTIA_module;
+//: NECESSARIA_module
+var NECESSARIA_module = {};
+var module = NECESSARIA_module;
 
 "Essentia", function(global){
-	var module = ESSENTIA_module;
+	var module = NECESSARIA_module;
 
 
 	//: console
