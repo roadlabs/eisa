@@ -9,8 +9,9 @@
 		});
 	};
 
-	var nt = eisa.ast.NodeType;
-	var ScopedScript = eisa.ast.ScopedScript;
+	var lofn = eisa.languages.lofn;
+	var nt = lofn.ast.NodeType;
+	var ScopedScript = lofn.ast.ScopedScript;
 
 	var config;
 
@@ -1191,7 +1192,7 @@
 		}
 	}();
 	//============
-	eisa.languages.lofn.Compiler = function (ast, vmConfig) {
+	lofn.Compiler = function (ast, vmConfig) {
 
 		bindConfig(vmConfig || standardTransform);
 		

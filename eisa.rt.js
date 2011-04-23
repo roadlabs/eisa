@@ -470,6 +470,7 @@ var EISA_DEBUGTIME = false;
 
 //: eisa-script
 "Eisa Script", function(eisa){
+	eisa.languages = {};
 	eisa.Script = function(source, language, config, libraries, callback) {
 
 		var libs = ['stl', 'mod'].concat(libraries || []);

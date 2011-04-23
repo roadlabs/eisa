@@ -2,10 +2,6 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			Parser for lofn
 
-var lofn = {};
-lofn.version = 'hoejuu';
-eisa.languages.lofn = lofn;
-
 0, function(eisa){
 
 	var $ = function(template, items_){
@@ -218,7 +214,7 @@ eisa.languages.lofn = lofn;
 			throw token_err('Unspecified symbol ' + m, p, input)
 	};
 
-	var token_err = eisa.CompileErrorMeta("LFC");
+	var token_err = lofn.CompileErrorMeta("LFC");
 
 	var lex = lofn.lex = function (input) {
 		var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};
@@ -352,8 +348,8 @@ eisa.languages.lofn = lofn;
 				return true;
 	};
 
-	var NodeType = eisa.ast.NodeType;
-	var ScopedScript = eisa.ast.ScopedScript;
+	var NodeType = lofn.ast.NodeType;
+	var ScopedScript = lofn.ast.ScopedScript;
 
 	lofn.parse = function (input, source, initInterator) {
 
@@ -488,7 +484,7 @@ eisa.languages.lofn = lofn;
 			if(node.type === nt.EXPRSTMT) return;
 			if(node.type === nt.BREAK)
 				throw PE("Break outside a loop statement or CASE statement");
-			return eisa.walkNode(node, checkBreakPosition);
+			return lofn.walkNode(node, checkBreakPosition);
 		};
 
 		var generateObstructiveness = function (node) {
@@ -498,7 +494,7 @@ eisa.languages.lofn = lofn;
 				node.obstructive = true;
 				obs = true
 			};
-			eisa.walkNode(node, function(n){ if(generateObstructiveness(n)) obs = true });
+			lofn.walkNode(node, function(n){ if(generateObstructiveness(n)) obs = true });
 			if(obs)
 				node.obstructive = true;
 			return obs;

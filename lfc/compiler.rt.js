@@ -4,11 +4,11 @@
 
 (function(eisa){
 
-	eisa.languages = {};
-	eisa.ast = {};
+	var lofn = eisa.languages.lofn = {};
+	lofn.ast = {};
 	var warn = function(s){eisa.log(s)};
 	
-	var NodeType = eisa.ast.NodeType = function () {
+	var NodeType = lofn.ast.NodeType = function () {
 		var types = [
 			// Unknown type
 			'UNKNOWN',
@@ -47,15 +47,15 @@
 			// Variable
 			'VARDECL',
 			// Large-scale
-			'BLOCK', 'FUNCTION', 'PARAMETERS', 'BODY', 'SCRIPT', 'SCOPE'
+			'BLOCK', 'FUNCTION', 'PARAMETERS', 'BODY', 'SCRIPT', 'SCOPE'];
 
-		];
 		var T = {};
-		for (var i = 0; i < types.length; i++) T[types[i]] = i;
+		for (var i = 0; i < types.length; i++)
+			T[types[i]] = i;
 		return T;
 	} ();
 
-	var CompileErrorMeta = eisa.CompileErrorMeta = function(prefix){
+	var CompileErrorMeta = lofn.CompileErrorMeta = function(prefix){
 		return function(message, pos, source){
 			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
 			var lineno_l = lineno.toString().length;
@@ -68,11 +68,9 @@
 		};
 	};
 
-	var CompileError = eisa.CompileError = CompileErrorMeta("EISA");
+	var CompileError = lofn.CompileError = CompileErrorMeta("EISA");
 
-	eisa.compileEnv = {}
-
-	var ScopedScript = eisa.ast.ScopedScript = function (id, env) {
+	var ScopedScript = lofn.ast.ScopedScript = function (id, env) {
 		this.code = {type: NodeType.SCRIPT};
 		this.variables = env ? derive(env.variables) : new Nai;
 		this.varIsArg = new Nai;
@@ -145,7 +143,7 @@
 		return scope.variables[name] = scope.id;
 	};
 
-	eisa.walkNode = function(node, f, aux){
+	lofn.walkNode = function(node, f, aux){
 		if(!node) return;
 		if(!node.type) return;
 		for(var each in node) if(node[each]){
@@ -158,5 +156,6 @@
 				f(prop, aux)
 			}
 		}
-	}
+	};
+
 })(EISA_eisa);
