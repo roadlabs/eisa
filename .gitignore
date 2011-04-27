@@ -8,3 +8,6 @@ smp/*
 *.lf.js
 doc/*.html
 .vim/
+
+test/*.js
+!test/inputbox.js

@@ -1,4 +1,4 @@
-﻿::annot-js mod.rt.js
+﻿::annot-js src/mod.rt.js
 :include doc/annot.lsta
 :include doc/refs.lsta
 :title mod.rt.js

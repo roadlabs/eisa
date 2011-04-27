@@ -1,7 +1,5 @@
 //: ^
 // Eisa Runtime, by Belleve Invis
-//: module-system-init
-NECESSARIA_module.globalStart("lib/");
 
 //: Nai
 var Nai = function(){};
