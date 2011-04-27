@@ -2,12 +2,11 @@
 *.swn
 *.swo
 *~
-gen/*
-smp/*
+
 ~*
 *.lf.js
 doc/*.html
 .vim/
 
-test/*.js
-!test/inputbox.js
+test/*
+build/*
