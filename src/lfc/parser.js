@@ -19,6 +19,8 @@
 	// 如果需要，把上面这行改成 true
 
 	var lofn = eisa.languages.lofn;
+	var NodeType = lofn.ast.NodeType;
+	var ScopedScript = lofn.ast.ScopedScript;
 
 	var CONSTANT = 101,
 		ME = 102,
@@ -340,7 +342,6 @@
 		}
 	};
 
-
 	var HAS_DUPL = function (arr) {
 		var b = arr.slice(0).sort();
 		for (var i = 0; i < b.length - 1; i++)
@@ -348,8 +349,7 @@
 				return true;
 	};
 
-	var NodeType = lofn.ast.NodeType;
-	var ScopedScript = lofn.ast.ScopedScript;
+
 
 	lofn.parse = function (input, source, initInterator) {
 
@@ -364,9 +364,9 @@
 					(lineno + '').replace(/./g, '-'),
 					source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
 			return message;
-		}
-		var PE = function(message, p){
+		};
 
+		var PE = function(message, p){
 			var e = new SyntaxError(PW(message, p));
 			e.name = "Compile Error";
 			return e;
@@ -397,7 +397,7 @@
 
 			// minimalize AST size
 			scope.cleanup();
-		}
+		};
 
 		var ensure = function(c, m, p){
 			if(!c) throw PE(m, p);

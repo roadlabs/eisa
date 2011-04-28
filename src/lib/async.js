@@ -2,6 +2,7 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			perform essential asynchronous support with YIELD
 NECESSARIA_module.declare('async', [], function(req, exp){
+	var derive = EISA_derive;
 	var xport = function(n, v){
 		exp[n] = v
 	};

@@ -12,14 +12,13 @@ Nai.prototype = {
 };
 
 //: derive
-var derive = Object.create ? Object.create : function(){
+var derive = Object.craate ? Object.create : function(){
 	var F = function(){};
 	return function(obj){
 		F.prototype = obj;
 		return new F;
 	}
 }();
-var EISA_DERIVE = derive;
 var EISA_derive = derive;
 
 //: OWNS
@@ -166,7 +165,7 @@ Function.prototype.be = function (b) {
 };
 
 Function.prototype['new'] = function () {
-	var obj = derive(this.prototype);
+	var obj = EISA_derive(this.prototype);
 	this.apply(obj, arguments);
 	return obj;
 };
@@ -228,8 +227,7 @@ if (!Array.prototype.some){
 		return false;
 	};
 }
-if (!Array.prototype.reduce)
-{
+if (!Array.prototype.reduce){
 	Array.prototype.reduce = function(fun /*, initialValue */)
 	{
 		"use strict";
@@ -314,8 +312,7 @@ if (!Array.prototype.reduceRight){
 		return accumulator;
 	};
 }
-if (!Array.prototype.every)
-{
+if (!Array.prototype.every){
 	Array.prototype.every = function(fun /*, thisp */)
 	{
 		"use strict";
@@ -338,8 +335,7 @@ if (!Array.prototype.every)
 		return true;
 	};
 }
-if (!Array.prototype.filter)
-{
+if (!Array.prototype.filter){
 	Array.prototype.filter = function(fun /*, thisp */)
 	{
 		"use strict";
@@ -367,8 +363,7 @@ if (!Array.prototype.filter)
 		return res;
 	};
 }
-if (!Array.prototype.forEach)
-{
+if (!Array.prototype.forEach){
 	Array.prototype.forEach = function(fun /*, thisp */)
 	{
 		"use strict";
@@ -461,7 +456,7 @@ var EISA_DEBUGTIME = false;
 					if(obts[each] === YES)
 						f(vals[each], each)
 			};
-			f(vals, enumVars);
+			return f.call(vals, vals, enumVars);
 		});
 	};
 }(EISA_eisa);

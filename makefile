@@ -3,24 +3,26 @@ TEST = test
 BUILD = build
 TESTENV = testenv
 
-.PHONY: clean eisart lfc libs \
-	testenv eisarttest lfctest libtest test
+compose = cat $^ > $@
+
+all : eisa
+
+eisa : eisart lfc libs
 
 clean:
-	rm -rf $(BUILD)/*
-	rm -rf $(TEST)/*
+	-rm -rf $(BUILD)/*
+	-rm -rf $(TEST)/*
 
 eisart:
 	cp $(SRC)/*.rt.js $(BUILD)/
 
 LFCD = $(SRC)/lfc
-
 LFCFILE = $(LFCD)/compiler.rt.js \
-		  $(LFCD)/ast.js \
+		  $(LFCD)/parser.js \
 		  $(LFCD)/compiler.js
 
 $(BUILD)/lfc.js : $(LFCFILE)
-	cat $(LFCFILE) > $(BUILD)/lfc.js
+	$(compose)
 
 lfc : $(BUILD)/lfc.js
 
@@ -42,3 +44,6 @@ testenv:
 
 test: testenv eisarttest lfctest libtest
 	rm -rf $(TEST)/*/*~
+
+.PHONY: all eisa clean eisart lfc libs \
+	testenv eisarttest lfctest libtest test

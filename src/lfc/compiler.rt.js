@@ -7,8 +7,23 @@
 	var lofn = eisa.languages.lofn = {};
 	lofn.ast = {};
 	var warn = function(s){eisa.log(s)};
+
+	var derive = EISA_derive;
 	
-	var NodeType = lofn.ast.NodeType = function () {
+	var CompileErrorMeta = lofn.CompileErrorMeta = function(prefix){
+		return function(message, pos, source){
+			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
+			var lineno_l = lineno.toString().length;
+			message = '[' + prefix + '] ' + message + '\nat line: ' + lineno;
+			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
+			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
+	
+			var e = new Error(message);
+			return e;
+		};
+	};
+
+		var NodeType = lofn.ast.NodeType = function () {
 		var types = [
 			// Unknown type
 			'UNKNOWN',
@@ -54,21 +69,6 @@
 			T[types[i]] = i;
 		return T;
 	} ();
-
-	var CompileErrorMeta = lofn.CompileErrorMeta = function(prefix){
-		return function(message, pos, source){
-			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
-			var lineno_l = lineno.toString().length;
-			message = '[' + prefix + '] ' + message + '\nat line: ' + lineno;
-			message += '\n ' + lineno + ' : ' + (source.split('\n')[lineno - 1]);
-			message += '\n-' + (lineno + '').replace(/./g, '-') + '---' + (source.slice(0, pos).split('\n')[lineno - 1].replace(/./g, '-').replace(/$/, '^'));
-	
-			var e = new Error(message);
-			return e;
-		};
-	};
-
-	var CompileError = lofn.CompileError = CompileErrorMeta("EISA");
 
 	var ScopedScript = lofn.ast.ScopedScript = function (id, env) {
 		this.code = {type: NodeType.SCRIPT};
@@ -142,6 +142,8 @@
 		}
 		return scope.variables[name] = scope.id;
 	};
+
+	var CompileError = lofn.CompileError = CompileErrorMeta("EISA");
 
 	lofn.walkNode = function(node, f, aux){
 		if(!node) return;

@@ -11,7 +11,7 @@ eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 
 	//: eisart
 	reg('Rule', Rule);
-	reg('derive', derive);
+	reg('derive', EISA_derive);
 	reg('NamedArguments', NamedArguments);
 
 	//: composing

@@ -7,6 +7,7 @@ Eisa 标准库。这些库里面的东西可以直接被 Eisa 生成代码获取
 这是一个标准的 Essentia 模块。原来的写法和现在很不同。
 
 :section 迭代契约
+
 		Interable : {
 			getEnumerator : () -> Enumertor
 		}
