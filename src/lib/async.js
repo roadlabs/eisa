@@ -26,6 +26,8 @@ NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 					restart(x);
 				}
 				T.resume();
+			} else {
+				throw new Error('Unable to wait a non-task object: ' + T)
 			}
 		},
 		"return": function(thisp, argsp, value){

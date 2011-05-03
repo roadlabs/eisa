@@ -1449,7 +1449,7 @@
 				advance(OPERATOR, 'in');
 				n.names = a;
 				n.expression = expression();
-			} else {
+			} else if (tokenIs(ID, 'from')) {
 				advance(ID, 'from');
 				n.names = a;
 				var f = expression();
@@ -1465,7 +1465,12 @@
 					args: args,
 					names: names
 				});
-			};
+			} else if (stover()) {
+				n.names = a;
+				n.expression = new Node(nt.THIS);
+			} else {
+				throw PE('Unexpected USING statement form')
+			}
 			return n;
 		}
 
