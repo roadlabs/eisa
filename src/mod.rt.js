@@ -3,7 +3,7 @@
 var NECESSARIA_module = {};
 var module = NECESSARIA_module;
 
-"Essentia", function(global){
+"Necessaria", function(global){
 	var module = NECESSARIA_module;
 
 

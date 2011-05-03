@@ -3,7 +3,29 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
 
-eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
+EISA_eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
+
+	var eisa = EISA_eisa;
+	var derive = eisa.derive;
+	var Nai = eisa.Nai;	
+
+    var CNARG = EISA_eisa.runtime.CNARG;
+    var CREATERULE = EISA_eisa.runtime.CREATERULE;
+    var IINVOKE = EISA_eisa.runtime.IINVOKE;
+    var M_TOP = EISA_eisa.runtime.M_TOP;
+    var NamedArguments = EISA_eisa.runtime.NamedArguments;
+    var OBSTRUCTIVE = EISA_eisa.runtime.OBSTRUCTIVE;
+    var OBSTRUCTIVE_SCHEMATA_M = EISA_eisa.runtime.OBSTRUCTIVE_SCHEMATA_M;
+    var OWNS = EISA_eisa.runtime.OWNS;
+    var RETURNVALUE = EISA_eisa.runtime.RETURNVALUE;
+    var RMETHOD = EISA_eisa.runtime.RMETHOD;
+    var Rule = EISA_eisa.runtime.Rule;
+    var SLICE = EISA_eisa.runtime.SLICE;
+    var THROW = EISA_eisa.runtime.THROW;
+    var TRY = EISA_eisa.runtime.TRY;
+    var UNIQ = EISA_eisa.runtime.UNIQ;
+    var YIELDVALUE = EISA_eisa.runtime.YIELDVALUE;
+
 	
 	var reg = function(name, value){
 		exp[name] = value
@@ -11,22 +33,22 @@ eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 
 	//: eisart
 	reg('Rule', Rule);
-	reg('derive', EISA_derive);
+	reg('derive', derive);
 	reg('NamedArguments', NamedArguments);
 
 	//: composing
 	reg('composing', function(obj_){
 		var obj = derive(obj_);
 		for(var i = 1; i < arguments.length; i++){
-			if(arguments[i] instanceof EISA_Rule)
+			if(arguments[i] instanceof Rule)
 				obj[arguments[i].left] = arguments[i].right;
-			else if (arguments[i] instanceof EISA_NamedArguments)
+			else if (arguments[i] instanceof NamedArguments)
 				NamedArguments.each(arguments[i], function(val, prop){
 					obj[prop] = val
 				});
 			else {
 				for(var each in arguments[i])
-					if(EISA_OWNS(arguments[i], each))
+					if(OWNS(arguments[i], each))
 						obj[each] = arguments[i][each];
 			}
 		}
@@ -89,7 +111,7 @@ eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 			return x instanceof Array
 		};
 		A.convertFrom = function(x){
-			return EISA_SLICE(x, 0)
+			return SLICE(x, 0)
 		};
 
 		return A;
@@ -142,20 +164,20 @@ eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 	reg('type', { of : function(x){return typeof x} });
 	reg('present', { be : function(x){return x !== undefined && x !== null}});
 	reg('absent', { be : function(x){return x === undefined || x === null }});
-	reg('YieldValue', {be: function(x){return x instanceof EISA_YIELDVALUE}});
-	reg('ReturnValue', {be: function(x){return x instanceof EISA_RETURNVALUE}});
+	reg('YieldValue', {be: function(x){return x instanceof YIELDVALUE}});
+	reg('ReturnValue', {be: function(x){return x instanceof RETURNVALUE}});
 
 	//: enumerator
 	reg('enumerator', function(){
 		var enumeratorSchemata = {
 			'yield': function(t, a, g, restart){
-				return new EISA_YIELDVALUE(g);
+				return new YIELDVALUE(g);
 			},
 			'bypass': function(t, a, g, restart){
-				return new EISA_YIELDVALUE(g[0])
+				return new YIELDVALUE(g[0])
 			},
 			'return': function(t, a, v){
-				return new EISA_RETURNVALUE(v)
+				return new RETURNVALUE(v)
 			}
 		}
 		return function(M){
@@ -166,7 +188,7 @@ eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 					var d = G.apply(t, a);
 					var i = function(f){
 						var v;
-						while((v = d()) instanceof EISA_YIELDVALUE)
+						while((v = d()) instanceof YIELDVALUE)
 							f.apply(null, v.values)			
 					}
 					var r = function(f){
@@ -214,11 +236,11 @@ eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 		return {emit: function(){
 			if(f){
 				f = false;
-				return new EISA_YIELDVALUE([cp[0], 0])
+				return new YIELDVALUE([cp[0], 0])
 			}
 			i++;
-			if (i >= cp.length) return new EISA_RETURNVALUE();
-			return new EISA_YIELDVALUE([cp[i], i]);
+			if (i >= cp.length) return new RETURNVALUE();
+			return new YIELDVALUE([cp[i], i]);
 		}}
 	};
 });

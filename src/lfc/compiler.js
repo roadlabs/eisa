@@ -13,6 +13,9 @@
 	var nt = lofn.ast.NodeType;
 	var ScopedScript = lofn.ast.ScopedScript;
 
+	var EISA_UNIQ = eisa.runtime.UNIQ;
+	var OWNS = eisa.runtime.OWNS;
+
 	var config;
 
 	var C_NAME,
@@ -118,12 +121,12 @@
 			temps[i] = BIND_TEMP(tree, temps[i]);
 
 		s = JOIN_STMTS([
+				hook_enter || '',
 				THIS_BIND(tree),
 				ARGS_BIND(tree),
 				ARGN_BIND(tree),
 				(temps.length ? 'var ' + temps.join(', '): ''),
 				(vars.length ? 'var ' + vars.join(',\n    ') : ''),
-				hook_enter || '',
 				s.replace(/^    /gm, ''),
 				hook_exit || '']);
 
@@ -179,6 +182,7 @@
 				C_TEMP('SCHEMATA'),
 				pars.concat(temppars).join(', '),
 				JOIN_STMTS([
+					hook_enter || '',
 					THIS_BIND(tree),
 					ARGS_BIND(tree),
 					ARGN_BIND(tree),
@@ -186,7 +190,6 @@
 					(vars.length ? 'var ' + vars.join(', ') : ''),
 					C_TEMP('PROGRESS') + '=' + lInital,
 					C_TEMP('EOF') + '= false',
-					hook_enter || '',
 					$('return %1 = function(%2){%3}',
 						C_TEMP('COROFUN'),
 						C_TEMP('FUN'),
@@ -1200,7 +1203,13 @@
 		var enter = trees[0];
 
 		var body = '';
-		var enterText = "var undefined;";
+		var enterText = "var undefined;\n" + function(){
+			var s = '';
+			for(var item in eisa.runtime) if(OWNS(eisa.runtime, item)) {
+				s += 'var EISA_' + item + ' = EISA_eisa.runtime.' + item + ';\n';
+			};
+			return s;
+		}();
 		var exitText = "";
 
 		var generateExecutable = function(generatedSource){

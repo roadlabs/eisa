@@ -4,11 +4,13 @@
 
 (function(eisa){
 
+	var Nai = eisa.Nai;
+
 	var lofn = eisa.languages.lofn = {};
 	lofn.ast = {};
 	var warn = function(s){eisa.log(s)};
 
-	var derive = EISA_derive;
+	var derive = eisa.derive;
 	
 	var CompileErrorMeta = lofn.CompileErrorMeta = function(prefix){
 		return function(message, pos, source){
