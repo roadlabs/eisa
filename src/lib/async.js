@@ -35,7 +35,7 @@ NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 		}
 	}
 	var async = function(G, name){
-		return function(){
+		if(G.build) return function(){
 			var yf;
 			var t = new Task_P(function(){
 				var r = yf();
@@ -47,8 +47,19 @@ NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 			yf = G.build(asyncSchemata).apply(t, arguments);
 			t.name = name;
 			return t;
+		};
+		else return function(){
+			var t;
+			return t = new Task_P(function(){
+				var r = G();
+				t.resend(r);
+				return r;
+			})
 		}
-	}
+	};
+	var asyncTask = function(){
+		return async.apply(this, arguments)()
+	};
 
 
 	var delay = function(f, time){
@@ -136,4 +147,5 @@ NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 	xport('sleep', function(time){return delay(function(){}, time)});
 	xport('event', evt);
 	xport('Timer', Timer);
+	xport('asyncTask', asyncTask);
 });
