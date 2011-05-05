@@ -140,47 +140,67 @@ var EISA_eisa = function(){
 		return ret;
 	};
 
+	var tryDefineProperty = function(){
+		var f;
+		try {
+			f = function(o, n, v){
+				Object.defineProperty(o, n, {
+					writable: false,
+					value: v,
+					enumerable: false,
+					configurable: false
+				});
+				return o;
+			};
+			f({}, 'a', {});
+		} catch (e){
+			f = function(o, n, v){o[n] = v; return o};
+		};
+		return f;
+	}();
+	
+	tryDefineProperty(Function.prototype, 'method_', function(n, v){
+		tryDefineProperty(this.prototype, n, v);
+	});
+
 
 	//: proto-exts
-	Object.prototype.item = function (i) {
+	Object.method_('item', function (i) {
 		return this[i];
-	};
-	Object.prototype.itemset = function (i, v) {
+	});
+	Object.method_('itemset', function (i, v) {
 		return this[i] = v;
-	};
-	Object.prototype.compareTo = function (b) {
+	});
+	Object.method_('compareTo',function (b) {
 		return this == b ? 0 : this > b ? 1 : -1;
-	};
-	Object.prototype.be = function (b) {
+	});
+	Object.method_('be',function (b) {
 		return this === b
-	};
-	Object.prototype.contains = function (b) {
+	});
+	Object.method_('contains',function (b) {
 		return b in this;
-	};
-	Object.prototype.of = function(v){
+	});
+	Object.method_('of',function(v){
 		return v[this];
-	}
-	Function.prototype.be = function (b) {
-		return b instanceof this;
-	};
+	});
 
-	Function.prototype['new'] = function () {
+	Function.method_('new', function () {
 		var obj = EISA_derive(this.prototype);
 		this.apply(obj, arguments);
 		return obj;
-	};
-	Function.prototype.be = function(that){
+	});
+	Function.method_('be',function(that){
 		return that instanceof this;
-	}
+	});
 	String.be = function(s){
 		return (typeof(s) === 'string') || s instanceof this
-	}
+	};
 	Number.be = function(s){
 		return (typeof(s) === 'string') || s instanceof this
-	}
+	};
 	Boolean.be = function(s){
 		return (typeof(s) === 'string') || s instanceof this
-	}
+	};
 
 	//: ES5
 	// Essential ES5 prototype methods
@@ -438,7 +458,7 @@ var EISA_eisa = function(){
 		THROW: EISA_THROW,
 		TRY: EISA_TRY,
 		UNIQ: EISA_UNIQ,
-		YIELDVALUE: EISA_YIELDVALUE,
+		YIELDVALUE: EISA_YIELDVALUE
 	};
 
 	eisa.derive = EISA_derive;

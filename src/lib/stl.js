@@ -215,21 +215,22 @@ EISA_eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 	//: prototypes
 	RegExp.convertFrom = function(s){
 		return new RegExp(s);
-	}
-	Function['new'] = function (args, body) { return new Function(args, body) };
-	String.prototype.stripMargins = function(){
-		return this.replace(/^\s*\|/gm, '')
 	};
 
-	Function.prototype.shiftIn = function(g){
+	String.method_('stripMargins', function(){
+		return this.replace(/^\s*\|/gm, '')
+	});
+
+	Function['new'] = function (args, body) { return new Function(args, body) };
+	Function.method_('shiftIn', function(g){
 		var f = this;
 		return function(){
 			return f(g.apply(this, arguments))
 		}
-	};
+	});
 
 	//: .Array-getEnumerator
-	Array.prototype.getEnumerator = function(){
+	Array.method_('getEnumerator', function(){
 		var cp = this.slice(0);
 		var i = 0;
 		var f = true
@@ -242,5 +243,5 @@ EISA_eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
 			if (i >= cp.length) return new RETURNVALUE();
 			return new YIELDVALUE([cp[i], i]);
 		}}
-	};
+	});
 });

@@ -3,6 +3,9 @@
 //	:info:			perform essential asynchronous support with YIELD
 NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 	var derive = req('stl').derive;
+	var composing = req('stl').composing;
+	var schemata_m = EISA_eisa.runtime.OBSTRUCTIVE_SCHEMATA_M;
+
 	var xport = function(n, v){
 		exp[n] = v
 	};
@@ -16,7 +19,7 @@ NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 	}
 	Task_P.prototype.resend = function(){};
 
-	var asyncSchemata = {
+	var asyncSchemata = composing(schemata_m, {
 		wait: function(thisp, argsp, given, restart){
 			var T = given[0];
 			var thatresend = T.resend;
@@ -33,7 +36,7 @@ NECESSARIA_module.declare('async', ['stl'], function(req, exp){
 		"return": function(thisp, argsp, value){
 			thisp.resend(value)
 		}
-	}
+	});
 	var async = function(G, name){
 		if(G.build) return function(){
 			var yf;

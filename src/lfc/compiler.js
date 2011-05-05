@@ -386,7 +386,7 @@
 		};
 		var lmethodoper = function (operator, method) {
 			schemata(nt[operator], function () {
-				return $('(%1.%2(%2))', transform(this.left), method, transform(this.right));
+				return $('(%1.%2(%3))', transform(this.left), method, transform(this.right));
 			});
 		};
 
