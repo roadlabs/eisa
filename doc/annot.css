@@ -84,3 +84,6 @@ pre.lstac .annotation.annotation-dummy .content {
 		background: white;
 	}
 }
+
+h2 { font-size: 1.1em; }
+h3, h4, h5, h6 { font-size: 1em; }

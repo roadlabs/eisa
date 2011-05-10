@@ -1,7 +1,4 @@
 ﻿::annot-js src/mod.rt.js
-:include doc/annot.lsta
-:include doc/refs.lsta
-:title mod.rt.js
 :subtitle or Necessaria.
 
 Necessaria 是基于 Commonjs （设计中的）模块规范构建的模块系统。Necessaria 和 eisa.rt.js 无关，可以单独使用。

@@ -1,15 +1,22 @@
 ﻿:. marcos
-	:simple-marco a
-		:@ %i
-			::section %i
-			%c
-	:simple-marco i
-		:@ %i
-			::section `%i`
-			%c
+	:marco annotlang
 
-:. references
-	:ref
-		[[eisa]]: http://github.com/infinte/eisa
-		[[commonjs]]: http://commonjs.org/
-		[[Necessaria]]: http://github.com/infinte/Necessaria
+		:marco annot-%i
+			:include doc/refs.lsta
+			::--annot-%i %%i
+			:title %%i
+			:marco a
+				:--@ %%%i
+					::section %%%i
+					%%%c
+			:marco i
+				:--@ %%%i
+					::section `%%%i`
+					%%%c
+			:marco @
+				:--@ %%%i
+					:section 
+						%%%c
+			%%c
+
+	:annotlang js

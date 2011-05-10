@@ -1,7 +1,5 @@
 ﻿::annot-js src/lib/stl.js
 
-:title lib/stl.js
-
 Eisa 标准库。这些库里面的东西可以直接被 Eisa 生成代码获取，也可以用于本地代码。
 
 这是一个标准的 Essentia 模块。原来的写法和现在很不同。

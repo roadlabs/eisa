@@ -1,6 +1,4 @@
 ﻿::annot-js src/eisa.rt.js
-:include doc/annot.lsta
-:title Eisa.rt.js
 
 [[Eisa]] 运行时, by Belleve Invis
 :section （很无力的）命名约定
@@ -11,8 +9,8 @@
 	- 仅用于生成代码，几乎不可能被用户代码调用者，全大写表示之。
 	- 可能被第三方调用者，包含普通命名格式。
 
-:@ module-system-init
-	初始化 [[Necessaria]]，设置起始目录为 `lib`
+:@ EISA_eisa
+	用了个函数做包装……减少对外接口数。
 
 :a Nai
 	Nai 是 Eisa 的基本对象之一，很多场合——包括变量名检测——都依赖于之。
@@ -53,6 +51,9 @@
 :@ Exceptions
 	`EISA_THROW` 和 `EISA_TRY` 原语用来处理异常。考虑到 Eisa 阻塞原语流程控制的特殊性，Eisa 生成的代码中，不使用 `try`/`throw` 语句。
 
+:i tryDefineProperty
+	ES5-优先的原型修改函数，如果 ES5 特性可用，则会用 ES5 里的 `defineProperty` 修改原型，使之“和原生属性不可别”。在不支持的情况下，则会采用传统的方法。
+
 :@ proto-exts
 	这里扩展的方法用于 Eisa 运行时，和语法配合。
 
@@ -74,10 +75,12 @@
 	* `each` 方法：视作范围，进行迭代
 
 :@ eisa-master
-	Eisa 的主控命名空间。
+	主控命名空间
+	:section 关于版本号
+		这个版本号是一个代号，开发板永远是 “Hoejuu”，发布版会有不同的代号。
 
 :@ eisa-module-helpers
-	这里接合 Essentia，使用 `ESSENTIA_module` 的 `provide` 导入模块并分析导入接口。
+	这里接合 Necessaria，使用 `NECESSARIA_module` 的 `provide` 导入模块并分析导入接口。
 
 :@ eisa-script
 	这里封装了编译器和语言的细节，提供简单的 `Script` 接口
