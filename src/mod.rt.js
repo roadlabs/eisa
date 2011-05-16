@@ -25,6 +25,23 @@ var module = NECESSARIA_module;
 	//: mod_m
 	var mod_m = {};
 
+	//: Join
+	var Join = function(waitings, listener, callback){
+		var count = waitings.length;
+		if(!count) return callback();
+
+		var f = function(){
+			count -= 1;
+			if(!count){
+				callback()
+			}
+		};
+
+		for(var i = 0; i < waitings.length; i++){
+			listener(waitings[i], f)
+		};
+	};
+
 	//----------------------------------------------------------------------------
 	// The minimal language enhancement
 	//----------------------------------------------------------------------------
@@ -117,7 +134,7 @@ var module = NECESSARIA_module;
 	function memoize(uri, mod) {
 		mod.dependencies = ids2Uris(mod.dependencies, uri, mod.prefix);
 		providedMods[uri] = mod;
-	}
+	};
 
 	function getUnMemoized(uris) {
 		var ret = [], i = 0, len = uris.length, uri;
@@ -128,7 +145,7 @@ var module = NECESSARIA_module;
 			}
 		}
 		return ret;
-	}
+	};
 
 
 	//----------------------------------------------------------------------------
@@ -168,28 +185,21 @@ var module = NECESSARIA_module;
 		var uris = getUnMemoized(originalUris);
 		if (uris.length === 0) return cb();
 
-		for (var i = 0, len = uris.length, remain = len; i < len; i++) {
-			(function(uri) {
+		Join(uris, function(uri, resend){
+			fetch(uri, function(){
+				var deps = (providedMods[uri] || 0).dependencies || [];
+				var len = deps.length;
 
-				fetch(uri, function() {
-
-					var deps = (providedMods[uri] || 0).dependencies || [];
-					var len = deps.length;
-
-					if (len) {
-						deps = getUnMemoized(ids2Uris(deps));
-						remain += len;
-
-						provide(deps, function() {
-							remain -= len;
-							if (remain === 0) cb();
-						}, true);
-					};
-					if (--remain === 0) cb();
-				});
-
-			})(uris[i]);
-		}
+				if (len) {
+					deps = getUnMemoized(ids2Uris(deps));
+					provide(deps, function(){
+						resend()
+					}, true);
+				} else {
+					resend();
+				}
+			});
+		}, cb);
 
 		function cb() {
 			if (callback) {
@@ -200,7 +210,7 @@ var module = NECESSARIA_module;
 	}
 
 
-	function Declare(tfm, delayableQ){
+	function Declare(tfm){
 		return function (id, deps, factory) {
 			// Overloads arguments.
 			if (isArray(id)) {
@@ -212,7 +222,6 @@ var module = NECESSARIA_module;
 			var mod = derive(mod_m);
 			mod.dependencies = deps;
 			mod.factory = tfm(factory);
-			mod.obstructive = !delayableQ;
 
 			var uri;
 
@@ -273,7 +282,7 @@ var module = NECESSARIA_module;
 
 	//: declare
 	var declare = Declare(function(f){
-		return function(r, x, m, finis){
+		return function(r, x, finis, m){
 			var ret = f(r, x, m);
 			finis(ret);
 			return ret;
@@ -343,7 +352,7 @@ var module = NECESSARIA_module;
 		node.async = true;
 		node.src = url;
 		return head.insertBefore(node, head.firstChild);
-	}
+	};
 
 	function scriptOnload(node, callback) {
 		node.addEventListener('load', callback, false);
@@ -352,7 +361,7 @@ var module = NECESSARIA_module;
 			console.error('404 error:', node.src);
 			callback();
 		}, false);
-	}
+	};
 
 	if (isLegacy) {
 		scriptOnload = function(node, callback) {
@@ -365,7 +374,7 @@ var module = NECESSARIA_module;
 			// NOTE: In IE6-8, script node does not fire an "onerror" event when
 			// node.src is 404.
 		}
-	}
+	};
 
 
 	var interactiveScript = null;
@@ -386,7 +395,7 @@ var module = NECESSARIA_module;
 		}
 
 		return null;
-	}
+	};
 
 
 	//----------------------------------------------------------------------------
@@ -414,12 +423,6 @@ var module = NECESSARIA_module;
 				throw 'Invalid module id: ' + id;
 			}
 
-			// Checks cyclic dependencies.
-//			if (isCyclic(sandbox, uri)) {
-//				console.warn('Found cyclic dependencies:', uri);
-//				return mod.exports;
-//			}
-
 			return f(uri, mod);
 		};
 
@@ -438,25 +441,27 @@ var module = NECESSARIA_module;
 				for(var each in exports) if(hasOwnProperty.call(exports, each))
 						f(each, exports[each], mod, id, uri)
 			})
-		};		
+		};
+
+		var cb = function(){callback(require)};
+
 		// initializes modules
 		var deps = sandbox.deps, count = deps.length, mod;
 		var derivatives = {};
 
-		if(!count) callback(require);
-		for(var i = 0; i < deps.length; i++)
-			if(providedMods[deps[i]] && !(mod = providedMods[deps[i]]).exports) {
+		Join(deps, function(dep, resend){
+			if(providedMods[dep] && !providedMods[dep].exports){
+				var mod = providedMods[dep];
 				setExports(mod, {
-					uri: deps[i],
+					uri: dep,
 					deps: mod.dependencies,
 					prefix: mod.prefix,
 					parent: sandbox
-				}, function(id){
-					if(!--count) callback(require);
-				}, deps[i])
+				}, resend, dep);
 			} else {
-				if(!--count) callback(require);
+				resend()
 			}
+		}, cb);
 
 		return require;
 	}
@@ -468,22 +473,15 @@ var module = NECESSARIA_module;
 			createRequire(sandbox, function(require){
 				var ret = factory(require,
 					(mod.exports = {}),
-					(mod.declare = declare, mod.load = load, mod),
-					finis);
+					finis,
+					(mod.declare = declare, mod.load = load, mod))
 
 				//if (ret) mod.exports = ret;
 			});
 
-		}
-		else {
+		} else {
 			mod.exports = factory || {};
 		}
-	}
-
-	function isCyclic(sandbox, uri) {
-		if (sandbox.uri === uri) return true;
-		if (sandbox.parent) return isCyclic(sandbox.parent, uri);
-		return false;
 	}
 
 

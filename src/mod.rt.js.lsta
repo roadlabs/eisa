@@ -17,6 +17,15 @@ Necessaria 是基于 Commonjs （设计中的）模块规范构建的模块系�
 		Module :: ∇mod_m
 	模块对象的原型
 
+:@	Join
+	:api fListener
+		fListener :: (obj: any, 
+			callback: (obj: any) -> ()) -> ()
+	:api fJoin
+		fJoin :: (waitings: Array(any),
+			listener: fListener,
+			callback: () -> ()) -> ()
+
 :@	provide
 	:api FRequire
 		FRequire :: (id: string) -> ModuleApiObject
