@@ -2,7 +2,10 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			Parser for lofn
 
-0, function(eisa){
+NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt'], function(require, exports){
+
+	var eisa = require('eisa.rt');
+	var lfcrt = require('lfc/compiler.rt');
 
 	var $ = function(template, items_){
 		var a = arguments;
@@ -18,9 +21,8 @@
 	// 我把 this/arguments 重绑定给关掉了
 	// 如果需要，把上面这行改成 true
 
-	var lofn = eisa.languages.lofn;
-	var NodeType = lofn.ast.NodeType;
-	var ScopedScript = lofn.ast.ScopedScript;
+	var NodeType = lfcrt.NodeType;
+	var ScopedScript = lfcrt.ScopedScript;
 
 	var CONSTANT = 101,
 		ME = 102,
@@ -216,9 +218,9 @@
 			throw token_err('Unspecified symbol ' + m, p, input)
 	};
 
-	var token_err = lofn.CompileErrorMeta("LFC");
+	var token_err = lfcrt.CompileErrorMeta("LFC");
 
-	var lex = lofn.lex = function (input) {
+	var lex = exports.lex = function (input) {
 		var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};
 		var make = function (t, v, p, isn) {
 			contt = false;
@@ -351,7 +353,7 @@
 
 
 
-	lofn.parse = function (input, source, initInterator) {
+	exports.parse = function (input, source, initInterator) {
 
 		var PW = function(message, p){
 			var pos = p == undefined ? (token ? token.position : source.length) : p;
@@ -484,7 +486,7 @@
 			if(node.type === nt.EXPRSTMT) return;
 			if(node.type === nt.BREAK)
 				throw PE("Break outside a loop statement or CASE statement");
-			return lofn.walkNode(node, checkBreakPosition);
+			return lfcrt.walkNode(node, checkBreakPosition);
 		};
 
 		var generateObstructiveness = function (node) {
@@ -494,7 +496,7 @@
 				node.obstructive = true;
 				obs = true
 			};
-			lofn.walkNode(node, function(n){ if(generateObstructiveness(n)) obs = true });
+			lfcrt.walkNode(node, function(n){ if(generateObstructiveness(n)) obs = true });
 			if(obs)
 				node.obstructive = true;
 			return obs;
@@ -905,7 +907,7 @@
 							left : new Node(nt.ARGUMENTS),
 							right : literal()
 						});
-					} else if (token.isName && !token.spaced) {
+					} else if (token && token.isName && !token.spaced) {
 						return new Node(nt.MEMBERREFLECT, {
 							left : new Node(nt.ARGN),
 							right : new Node(nt.LITERAL, {value: name()})
@@ -1746,7 +1748,10 @@
 			ws.newVar(n);
 			// varname = this[varname]
 			ws.initHooks[n] = new Node(nt.MEMBER, {
-				left: new Node(nt.THIS),
+				left: new Node(nt.MEMBER, {
+					left: new Node(nt.THIS),
+					right: 'inits'
+				}),
 				right: n
 			})
 		});
@@ -1756,14 +1761,4 @@
 		return {scopes: scopes, options: input.options};
 	};
 
-	lofn.funcoids = {};
-	lofn.funcoids["DO"] = function(node, env, args, arg0rear){
-		// arg0(arg1..)
-		if(arg0rear){
-			var a0 = arg0rear.combine(args[0]);
-			return "(" + a0.full + ".apply(" + a0.front + ", [" + args.slice(1).join(', ') + "]))"
-		} else {
-			return '(' + args[0] + '(' + args.slice(1).join(', ') + '))'
-		}		
-	}
-}(EISA_eisa);
+});

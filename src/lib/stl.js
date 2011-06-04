@@ -3,28 +3,28 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
 
-EISA_eisa.stl = NECESSARIA_module.declare('stl', [], function(req, exp){
+NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 
-	var eisa = EISA_eisa;
+	var eisa = req('eisa.rt');
 	var derive = eisa.derive;
 	var Nai = eisa.Nai;	
 
-    var CNARG = EISA_eisa.runtime.CNARG;
-    var CREATERULE = EISA_eisa.runtime.CREATERULE;
-    var IINVOKE = EISA_eisa.runtime.IINVOKE;
-    var M_TOP = EISA_eisa.runtime.M_TOP;
-    var NamedArguments = EISA_eisa.runtime.NamedArguments;
-    var OBSTRUCTIVE = EISA_eisa.runtime.OBSTRUCTIVE;
-    var OBSTRUCTIVE_SCHEMATA_M = EISA_eisa.runtime.OBSTRUCTIVE_SCHEMATA_M;
-    var OWNS = EISA_eisa.runtime.OWNS;
-    var RETURNVALUE = EISA_eisa.runtime.RETURNVALUE;
-    var RMETHOD = EISA_eisa.runtime.RMETHOD;
-    var Rule = EISA_eisa.runtime.Rule;
-    var SLICE = EISA_eisa.runtime.SLICE;
-    var THROW = EISA_eisa.runtime.THROW;
-    var TRY = EISA_eisa.runtime.TRY;
-    var UNIQ = EISA_eisa.runtime.UNIQ;
-    var YIELDVALUE = EISA_eisa.runtime.YIELDVALUE;
+    var CNARG = eisa.runtime.CNARG;
+    var CREATERULE = eisa.runtime.CREATERULE;
+    var IINVOKE = eisa.runtime.IINVOKE;
+    var M_TOP = eisa.runtime.M_TOP;
+    var NamedArguments = eisa.runtime.NamedArguments;
+    var OBSTRUCTIVE = eisa.runtime.OBSTRUCTIVE;
+    var OBSTRUCTIVE_SCHEMATA_M = eisa.runtime.OBSTRUCTIVE_SCHEMATA_M;
+    var OWNS = eisa.runtime.OWNS;
+    var RETURNVALUE = eisa.runtime.RETURNVALUE;
+    var RMETHOD = eisa.runtime.RMETHOD;
+    var Rule = eisa.runtime.Rule;
+    var SLICE = eisa.runtime.SLICE;
+    var THROW = eisa.runtime.THROW;
+    var TRY = eisa.runtime.TRY;
+    var UNIQ = eisa.runtime.UNIQ;
+    var YIELDVALUE = eisa.runtime.YIELDVALUE;
 
 	
 	var reg = function(name, value){

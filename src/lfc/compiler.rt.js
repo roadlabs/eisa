@@ -2,17 +2,16 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The essential environment for Eisa Compiler
 
-(function(eisa){
+NECESSARIA_module.declare(['eisa.rt'], function(require, exports){
 
+	var eisa = require('eisa.rt');
 	var Nai = eisa.Nai;
 
-	var lofn = eisa.languages.lofn = {};
-	lofn.ast = {};
 	var warn = function(s){eisa.log(s)};
 
 	var derive = eisa.derive;
 	
-	var CompileErrorMeta = lofn.CompileErrorMeta = function(prefix){
+	var CompileErrorMeta = exports.CompileErrorMeta = function(prefix){
 		return function(message, pos, source){
 			var lineno = ('\n' + source.slice(0, pos)).match(/\n/g).length;
 			var lineno_l = lineno.toString().length;
@@ -25,7 +24,7 @@
 		};
 	};
 
-		var NodeType = lofn.ast.NodeType = function () {
+	var NodeType = exports.NodeType = function () {
 		var types = [
 			// Unknown type
 			'UNKNOWN',
@@ -72,7 +71,7 @@
 		return T;
 	} ();
 
-	var ScopedScript = lofn.ast.ScopedScript = function (id, env) {
+	var ScopedScript = exports.ScopedScript = function (id, env) {
 		this.code = {type: NodeType.SCRIPT};
 		this.variables = env ? derive(env.variables) : new Nai;
 		this.varIsArg = new Nai;
@@ -145,9 +144,9 @@
 		return scope.variables[name] = scope.id;
 	};
 
-	var CompileError = lofn.CompileError = CompileErrorMeta("EISA");
+	var CompileError = exports.CompileError = CompileErrorMeta("EISA");
 
-	lofn.walkNode = function(node, f, aux){
+	exports.walkNode = function(node, f, aux){
 		if(!node) return;
 		if(!node.type) return;
 		for(var each in node) if(node[each]){
@@ -162,4 +161,4 @@
 		}
 	};
 
-})(EISA_eisa);
+});

@@ -2,16 +2,17 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The code generator for Eisa Runtime
 
-0, function (eisa) {
+NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function (require, exports) {
 	var TO_ENCCD = function (name) {
 		return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
 			return '$' + m.charCodeAt(0).toString(36) + '$'
 		});
 	};
 
-	var lofn = eisa.languages.lofn;
-	var nt = lofn.ast.NodeType;
-	var ScopedScript = lofn.ast.ScopedScript;
+	var eisa = require('eisa.rt');
+	var lfcrt = require('lfc/compiler.rt');
+	var nt = lfcrt.NodeType;
+	var ScopedScript = lfcrt.ScopedScript;
 
 	var EISA_UNIQ = eisa.runtime.UNIQ;
 	var OWNS = eisa.runtime.OWNS;
@@ -121,8 +122,8 @@
 			temps[i] = BIND_TEMP(tree, temps[i]);
 
 		s = JOIN_STMTS([
-				hook_enter || '',
 				THIS_BIND(tree),
+				hook_enter || '',
 				ARGS_BIND(tree),
 				ARGN_BIND(tree),
 				(temps.length ? 'var ' + temps.join(', '): ''),
@@ -182,8 +183,8 @@
 				C_TEMP('SCHEMATA'),
 				pars.concat(temppars).join(', '),
 				JOIN_STMTS([
-					hook_enter || '',
 					THIS_BIND(tree),
+					hook_enter || '',
 					ARGS_BIND(tree),
 					ARGN_BIND(tree),
 					(temps.length ? 'var ' + temps.join(', '): ''),
@@ -1195,7 +1196,9 @@
 		}
 	}();
 	//============
-	lofn.Compiler = function (ast, vmConfig) {
+	exports.lex = require('lfc/parser').lex;
+	exports.parse = require('lfc/parser').parse;
+	exports.Compiler = function (ast, vmConfig) {
 
 		bindConfig(vmConfig || standardTransform);
 		
@@ -1206,7 +1209,7 @@
 		var enterText = "var undefined;\n" + function(){
 			var s = '';
 			for(var item in eisa.runtime) if(OWNS(eisa.runtime, item)) {
-				s += 'var EISA_' + item + ' = EISA_eisa.runtime.' + item + ';\n';
+				s += 'var EISA_' + item + ' = ' + T_THIS() + '.runtime.' + item + ';\n';
 			};
 			return s;
 		}();
@@ -1249,4 +1252,4 @@
 		}
 	};
 
-}(EISA_eisa);
+});

@@ -1,4 +1,5 @@
-﻿NECESSARIA_module.declare("mod", [], function(req, exports){
+﻿NECESSARIA_module.declare("mod", ['eisa.rt'], function(req, exports){
+	var eisa = req('eisa.rt');
 	exports.module = NECESSARIA_module;
 	exports['imported'] = function(args_){
 		var f, libs = [];
@@ -10,10 +11,10 @@
 		}
 		if(!f){
 			return function(f){
-				return EISA_eisa.using(libs, f)
+				return eisa.using(libs, f)
 			}
 		} else {
-			return EISA_eisa.using(libs, f)
+			return eisa.using(libs, f)
 		};
 	};
 });

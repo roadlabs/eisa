@@ -1,10 +1,10 @@
 ﻿//:module: lib/async
 //	:author:		infinte (aka. be5invis)
 //	:info:			perform essential asynchronous support with YIELD
-NECESSARIA_module.declare('async', ['stl'], function(req, exp){
+NECESSARIA_module.declare('async', ['eisa.rt', 'stl'], function(req, exp){
 	var derive = req('stl').derive;
 	var composing = req('stl').composing;
-	var schemata_m = EISA_eisa.runtime.OBSTRUCTIVE_SCHEMATA_M;
+	var schemata_m = req('eisa.rt').runtime.OBSTRUCTIVE_SCHEMATA_M;
 
 	var xport = function(n, v){
 		exp[n] = v

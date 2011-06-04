@@ -2,7 +2,7 @@
 // Eisa Runtime, by Belleve Invis
 
 //: EISA_eisa
-var EISA_eisa = function() {
+NECESSARIA_module.declare([], function(require, exports) {
 	//: Nai
 	var Nai = function() {};
 	Nai.prototype = {
@@ -431,7 +431,7 @@ var EISA_eisa = function() {
 
 
 	//: eisa-master
-	var eisa = {};
+	var eisa = exports;
 	eisa.version = 'hoejuu';
 
 	eisa.log = function(message) {};
@@ -458,15 +458,9 @@ var EISA_eisa = function() {
 	eisa.derive = EISA_derive;
 	eisa.Nai = Nai;
 
-	return eisa;
-}()
 
-var EISA_DEBUGTIME = false;
 
-//: eisa-module-helpers
-"Eisa module helpers", function(eisa) {
-	var module = NECESSARIA_module;
-	var OWNS = EISA_eisa.rt.OWNS;
+	//: eisa-module-helpers
 	eisa.using = function(libs, f) {
 		var importings = [], immediates = [];
 		for (var i = 0; i < libs.length; i++) {
@@ -485,7 +479,7 @@ var EISA_DEBUGTIME = false;
 			for (var i = 0; i < immediates.length; i++) {
 				var immlib = immediates[i];
 				for (var each in immlib)
-					if (OWNS(immlib, each)) {
+					if (EISA_OWNS(immlib, each)) {
 						vals[each] = immlib[each];
 						obts[each] = YES
 					};
@@ -498,10 +492,17 @@ var EISA_DEBUGTIME = false;
 			return f.call(vals, vals, enumVars);
 		});
 	};
-}(EISA_eisa);
 
-//: eisa-script
-"Eisa Script", function(eisa) {
+	eisa.exec_ = function(libs, f){
+		eisa.using(libs, function(vals, enum_){
+			return f.call({
+				runtime: eisa.runtime, 
+				inits: vals
+			});
+		});
+	};
+
+	//: eisa-script
 	eisa.languages = {};
 	eisa.Script = function(source, language, config, libraries, callback) {
 
@@ -525,9 +526,14 @@ var EISA_DEBUGTIME = false;
 				},
 				start: function() {
 					if (!lfcr) this.compile();
-					lfcr.wrappedF.apply(initvs, arguments);
+					lfcr.wrappedF.apply({
+						runtime: eisa.runtime,
+						inits: initvs
+					}, arguments);
 				}
 			})
 		});
-	};	
-}(EISA_eisa);
+	};
+
+	return eisa;
+});
