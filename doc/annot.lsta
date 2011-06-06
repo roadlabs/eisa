@@ -1,22 +1,28 @@
 ﻿:. marcos
-	:marco annotlang
+	:marco annotlang . lang
 
-		:marco annot-%i
+		:marco annot-{lang} content file
 			:include doc/refs.lsta
-			::--annot-%i %%i
-			:title %%i
-			:marco a
-				:--@ %%%i
-					::section %%%i
-					%%%c
-			:marco i
-				:--@ %%%i
-					::section `%%%i`
-					%%%c
-			:marco @
-				:--@ %%%i
+			:.
+				:title {file}
+			:subvar dir ^src$
+			:subvar dir ^src[\\/]
+			:subvar path ^src([\\/])
+			::file doc/%d/%n.html
+			::template doc/template.html
+			::--annot-{lang} {file}
+			:title {file}
+			:marco a b i
+				:--@ {i}
+					::section {i}
+					{b}
+			:marco i b i
+				:--@ {i}
+					::section `{i}`
+					{b}
+			:marco @ b i
+				:--@ {i}
 					:section 
-						%%%c
-			%%c
-
+						{b}
+			{content}
 	:annotlang js
