@@ -170,17 +170,15 @@ NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 	//: enumerator
 	reg('enumerator', function(){
 		var enumeratorSchemata = {
-			'yield': function(t, a, g, restart){
-				return new YIELDVALUE(g);
+			'yield': function(restart){
+				return new YIELDVALUE(SLICE(arguments, 0, -1));
 			},
-			'bypass': function(t, a, g, restart){
-				return new YIELDVALUE(g[0])
-			},
-			'return': function(t, a, v){
+			'break': function(j){ return j },
+			'return': function(v){
 				return new RETURNVALUE(v)
 			}
 		}
-		return function(M){
+		var f = function(M){
 			var G = M.build(enumeratorSchemata);
 			return function(){
 				var t = this, a = arguments;
@@ -201,7 +199,11 @@ NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 					return {emit: function(f){return r(f)}}
 				}}
 			}
-		}
+		};
+		f.bypass = function(g, restart){
+			return new YIELDVALUE(g)
+		};
+		return f;
 	}());
 
 	reg('debugger', function(){debugger});

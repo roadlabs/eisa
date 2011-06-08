@@ -1,29 +1,29 @@
-module.declare [], {|require, exports|
+module.declare "stdenum", {|require, exports|
 	var upto = exports.upto = enumerator function(m, n):
 		for(var i = m; i <= n; i += 1),
-			yield ! i
+			! i
 	end;
 	var up = exports.up = enumerator function(n):
 		for(var i = n; true; i += 1),
-			yield ! i
+			! i
 	end;
 	var downto = exports.downto = enumerator function(m, n):
 		for(var i = m; i >= n; i -= 1),
-			yield ! i
+			! i
 	end;
 	var down = exports.down = enumerator function(n):
 		for(var i = n; true; i -= 1),
-			yield ! i
+			! i
 	end;
 	var takeWhile = exports.takeWhile = enumerator function(I, condition):
 		for var *a in I:
 			if not condition.apply(null, a), return undefined;
-			bypass ! a
+			enumerator.bypass ! a
 		end
 	end;
 	var select = exports.select = enumerator function(I, condition):
 		for var *a in I,
 			if condition.apply(null, a),
-				bypass ! a
+				enumerator.bypass ! a
 	end;
 }

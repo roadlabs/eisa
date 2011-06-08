@@ -2,7 +2,7 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			Parser for lofn
 
-NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt'], function(require, exports){
+NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function(require, exports){
 
 	var eisa = require('eisa.rt');
 	var lfcrt = require('lfc/compiler.rt');
@@ -492,7 +492,7 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt'], function(require, expo
 		var generateObstructiveness = function (node) {
 			if(!node || !node.type) return false;
 			var obs = false;
-			if(node.type === nt.AWAIT || node.type === nt.BREAK || node.type === nt.RETURN){
+			if(node.type === nt.YIELD ||node.type === nt.AWAIT || node.type === nt.BREAK || node.type === nt.RETURN){
 				node.obstructive = true;
 				obs = true
 			};
@@ -836,15 +836,6 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt'], function(require, expo
 							anames: [null]
 						}));
 						// or variable
-					} else if(nextIs(AWAIT)) {
-						if(workingScope.unCorable)
-							throw PE("Attempting to use AWAIT in a uncorable function");
-						workingScope.oProto = true;
-						var n = new Node(nt.AWAIT, {
-							pattern: name()
-						});
-						advance();
-						return n;
 					} else return variable();
 				case NUMBER:
 				case STRING:
@@ -981,8 +972,14 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt'], function(require, expo
 		};
 		var callExpression = function () {
 			var m = primary();
-			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT)) {
+			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT) || tokenIs(AWAIT)) {
 				switch (token.type) {
+					case AWAIT:
+						if(workingScope.unCorable)
+							throw PE("Attempting to use AWAIT in a uncorable function");
+						workingScope.oProto = true;
+						var m = new Node(nt.AWAIT, { expression: m });
+						advance();
 					case STARTBRACE:
 						if (token.value === RDSTART) { // invocation f(a,b,c...)
 							advance();
@@ -1099,6 +1096,12 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt'], function(require, expo
 				var t = advance(OPERATOR);
 				var n = callExpression();
 				return new Node(t.value === '-' ? nt.NEGATIVE : nt.NOT, { operand: n });
+			} else if (tokenIs(AWAIT)) {
+				advance(AWAIT);
+				if(workingScope.unCorable)
+					throw PE("Attempting to use AWAIT in a uncorable function");
+				workingScope.oProto = true;
+				return new Node(nt.YIELD, {operand: callExpression() });
 			} else {
 				return callExpression();
 			}

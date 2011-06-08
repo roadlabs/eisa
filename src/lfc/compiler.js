@@ -2,7 +2,7 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The code generator for Eisa Runtime
 
-NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function (require, exports) {
+NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function (require, exports) {
 	var TO_ENCCD = function (name) {
 		return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
 			return '$' + m.charCodeAt(0).toString(36) + '$'
@@ -750,39 +750,71 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function
 			return '(' + head + comp + ')';
 		});
 
+		var obsPart = function(node){
+			switch (this.type) {
+				case nt.ITEM:
+					var p = expPart(this.left);
+					var f = '(' + p + '.item(' + expPart(this.member) + '))';
+					return { p: p, f: f }
+				case nt.MEMBER:
+					var p = expPart(this.left);
+					return { p: p, f: PART(p, this.right) }
+				case nt.MEMBERREFLECT:
+					var p = expPart(this.left);
+					return { p: p, f: '((' + p + ')[' + expPart(this.right) + '])' }
+				default:
+					return {
+						f : expPart(this),
+						p : 'null'
+					}
+			}
+		};
+
 		var awaitCall = function(node, env){
-			env.argsOccurs = true;
-			env.thisOccurs = true;
+			var e = obsPart.call(this.func.expression);
 			var callbody = oC_ARGS(this, env).args;
 			var id = obstPartID();
 			var l = label();
 			ps(STOP(l));
-			ps($('return %1(%2, %3, [%4], function(x){%5 = x; %6()})',
-				PART(C_TEMP('SCHEMATA'), this.func.pattern),
-				T_THIS(),
-				T_ARGS(),
-				callbody,
+			ps($('return %1(%2.call(%3, %4 function(x){%5 = x; %6()}))',
+				PART(C_TEMP('SCHEMATA'), 'break'),
+				e.f,
+				e.p,
+				callbody ? callbody + "," : "",
 				id,
 				C_TEMP('COROFUN')));
 			LABEL(l);
 			return id;
 		};
+
 		oSchemata(nt.AWAIT, function (n, env) {
-			env.argsOccurs = true;
-			env.thisOccurs = true;
+			var e = obsPart.call(this.expression);
 			var id = obstPartID();
 			var l = label();
 			ps(STOP(l));
-			ps($('return %1(%2, %3, [%4], function(x){%5 = x; %6()})',
-				PART(C_TEMP('SCHEMATA'), this.func.pattern),
-				T_THIS(),
-				T_ARGS(),
-				'',
+			ps($('return %1(%2.call(%3, function(x){%4 = x; %5()}))',
+				PART(C_TEMP('SCHEMATA'), 'break'),
+				e.f,
+				e.p,
 				id,
 				C_TEMP('COROFUN')));
 			LABEL(l);
 			return id;
 		});
+		oSchemata(nt.YIELD, function (n, env) {
+			var e = expPart(this.operand);
+			var id = obstPartID();
+			var l = label();
+			ps(STOP(l));
+			ps($('return %1(%2, function(x){%3 = x; %4()})',
+				PART(C_TEMP('SCHEMATA'), 'yield'),
+				e,
+				id,
+				C_TEMP('COROFUN')));
+			LABEL(l);
+			return id;
+		});
+
 		oSchemata(nt.OBJECT, function () {
 			var inits = [],
 				x = 0;
@@ -1069,10 +1101,8 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function
 
 		cSchemata[nt.RETURN] = function() {
 			ps(OVER());
-			ps($('return %1["return"](%2, %3, %4)',
+			ps($('return %1["return"](%2)',
 				C_TEMP('SCHEMATA'),
-				T_THIS(),
-				T_ARGS(),
 				ct(this.expression)));
 			return '';
 		};
@@ -1118,9 +1148,7 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function
 		LABEL(lInital);
 		ct(tree.code);
 		ps(OVER());
-		ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '(' 
-			+ T_THIS() + ',' 
-			+ T_ARGS() + ')');
+		ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '()');
 
 		return flowM.joint();
 	}
@@ -1216,6 +1244,7 @@ NECESSARIA_module.declare(['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function
 		var exitText = "";
 
 		var generateExecutable = function(generatedSource){
+			
 			var f = Function('return ' + generatedSource)();
 
 			return {

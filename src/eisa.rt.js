@@ -2,7 +2,7 @@
 // Eisa Runtime, by Belleve Invis
 
 //: EISA_eisa
-NECESSARIA_module.declare([], function(require, exports) {
+NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 	//: Nai
 	var Nai = function() {};
 	Nai.prototype = {
@@ -34,8 +34,8 @@ NECESSARIA_module.declare([], function(require, exports) {
 	//: SLICE
 	var EISA_SLICE = function() {
 		var s = Array.prototype.slice;
-		return function(x, n) {
-			return s.call(x, n);
+		return function(x, m, n) {
+			return s.call(x, m, n);
 		};
 	} ();
 
@@ -100,7 +100,8 @@ NECESSARIA_module.declare([], function(require, exports) {
 	var EISA_OBSTRUCTIVE_SCHEMATA_M = {
 		'return': function(t, a, v) {
 			return v;
-		}
+		},
+		'break': function(j) { return j }
 	}
 
 	//: Exceptions

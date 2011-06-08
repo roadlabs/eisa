@@ -2,7 +2,7 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The essential environment for Eisa Compiler
 
-NECESSARIA_module.declare(['eisa.rt'], function(require, exports){
+NECESSARIA_module.declare("lfc/compiler.rt", ['eisa.rt'], function(require, exports){
 
 	var eisa = require('eisa.rt');
 	var Nai = eisa.Nai;
@@ -30,7 +30,7 @@ NECESSARIA_module.declare(['eisa.rt'], function(require, exports){
 			'UNKNOWN',
 			// Primary
 			'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'AWAIT',
+			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'AWAIT', 'YIELD',
 			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 			// Invocation
