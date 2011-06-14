@@ -101,8 +101,8 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 
 	"Common Functions";
 	var compileFunctionBody = function (tree, hook_enter, hook_exit, scopes) {
-		if (tree.oProto) return compileOProto(tree, hook_enter, hook_exit, scopes);
 		if (tree.transformed) return tree.transformed;
+		if (tree.oProto) return compileOProto(tree, hook_enter, hook_exit, scopes);
 		env = tree;
 		g_envs = scopes;
 		var s;
@@ -154,9 +154,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 		ScopedScript.useTemp(tree, 'PROGRESS');
 		ScopedScript.useTemp(tree, 'SCHEMATA', ScopedScript.SPECIALTEMP);
 		ScopedScript.useTemp(tree, 'EOF');
-		ScopedScript.useTemp(tree, 'ISFUN');
 		ScopedScript.useTemp(tree, 'COROFUN');
-		ScopedScript.useTemp(tree, 'FUN', ScopedScript.SPECIALTEMP);
 		ScopedScript.useTemp(tree, 'COEXCEPTION', ScopedScript.SPECIALTEMP);
 
 
@@ -179,7 +177,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 		for (var i = 0; i < temppars.length; i++)
 			temppars[i] = C_TEMP(temppars[i])
 
-		s = $('(EISA_OBSTRUCTIVE(function(%1){return function(%2){%3}}))', 
+		s = $('({build:function(%1){return function(%2){%3}}})', 
 				C_TEMP('SCHEMATA'),
 				pars.concat(temppars).join(', '),
 				JOIN_STMTS([
@@ -191,12 +189,10 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 					(vars.length ? 'var ' + vars.join(', ') : ''),
 					C_TEMP('PROGRESS') + '=' + lInital,
 					C_TEMP('EOF') + '= false',
-					$('return %1 = function(%2){%3}',
+					$('return %1 = function(){%2}',
 						C_TEMP('COROFUN'),
-						C_TEMP('FUN'),
 						JOIN_STMTS([
-							$('%1 = typeof %2 === "function"', C_TEMP('ISFUN'), C_TEMP('FUN')),
-							$('while(%1){\n%2\n}',
+							$('while(%1)\n%2',
 								C_TEMP('PROGRESS'), 
 								INDENT($('MASTERCTRL: switch(%1){%2}', C_TEMP('PROGRESS'), s)))
 						])),
@@ -713,7 +709,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 		};
 
 		oSchemata(nt.CALL, function (node, env, trees) {
-			if(this.func && this.func.type === nt.AWAIT)
+			if(this.func && this.func.type === nt.WAIT)
 				return awaitCall.apply(this, arguments);
 			var comp, head;
 			var pipelineQ = node.pipeline && node.func // pipe line invocation...
@@ -787,7 +783,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 			return id;
 		};
 
-		oSchemata(nt.AWAIT, function (n, env) {
+		oSchemata(nt.WAIT, function (n, env) {
 			var e = obsPart.call(this.expression);
 			var id = obstPartID();
 			var l = label();
@@ -796,19 +792,6 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 				PART(C_TEMP('SCHEMATA'), 'break'),
 				e.f,
 				e.p,
-				id,
-				C_TEMP('COROFUN')));
-			LABEL(l);
-			return id;
-		});
-		oSchemata(nt.YIELD, function (n, env) {
-			var e = expPart(this.operand);
-			var id = obstPartID();
-			var l = label();
-			ps(STOP(l));
-			ps($('return %1(%2, function(x){%3 = x; %4()})',
-				PART(C_TEMP('SCHEMATA'), 'yield'),
-				e,
 				id,
 				C_TEMP('COROFUN')));
 			LABEL(l);
@@ -1144,12 +1127,10 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 		};
 
 		// -------------------------------------------------------------
-
 		LABEL(lInital);
 		ct(tree.code);
 		ps(OVER());
 		ps('return ' + C_TEMP('SCHEMATA') + '["return"]' + '()');
-
 		return flowM.joint();
 	}
 
@@ -1237,26 +1218,24 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 		var enterText = "var undefined;\n" + function(){
 			var s = '';
 			for(var item in eisa.runtime) if(OWNS(eisa.runtime, item)) {
-				s += 'var EISA_' + item + ' = ' + T_THIS() + '.runtime.' + item + ';\n';
+				s += 'var EISA_' + item + ' = ' + PART(C_TEMP('RUNTIME'), item) + ';\n';
 			};
 			return s;
 		}();
-		var exitText = "";
 
 		var generateExecutable = function(generatedSource){
-			
-			var f = Function('return ' + generatedSource)();
-
+			var finalSource = enterText + 'return ' + generatedSource;
+			var f = Function(C_TEMP('RUNTIME'), C_TEMP('INIT'), finalSource);
 			return {
-				wrappedF: f,
-				rawF: f,
+				func: f,
+				source: finalSource,
 				generatedSource: generatedSource
 			}
 		}
 
 		return {
 			compile: function(){
-				body = compileFunctionBody(enter, enterText, exitText, trees);
+				body = compileFunctionBody(enter, '', '', trees);
 				return generateExecutable(body);
 			},
 			asyncCompile: function(onSuccess, onStep){
@@ -1265,9 +1244,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 				var i = 0, body;
 				var step = function(){
 					if(i < queue.length){
-						body = compileFunctionBody(queue[i], 
-							queue[i] === enter ? enterText : '', 
-							queue[i] === enter ? exitText : '', trees);
+						body = compileFunctionBody(queue[i], '', '', trees);
 						onStep(queue[i], i, body);
 						i += 1;
 

@@ -3,9 +3,9 @@
 //	:author:		infinte (aka. be5invis)
 //	:info:			The standard library for Lofn.
 
-NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
+NECESSARIA_module.declare('stl', ['eisa.rt'], function(require, exports){
 
-	var eisa = req('eisa.rt');
+	var eisa = require('eisa.rt');
 	var derive = eisa.derive;
 	var Nai = eisa.Nai;	
 
@@ -28,7 +28,7 @@ NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 
 	
 	var reg = function(name, value){
-		exp[name] = value
+		exports[name] = value
 	};
 
 	//: eisart
@@ -170,9 +170,6 @@ NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 	//: enumerator
 	reg('enumerator', function(){
 		var enumeratorSchemata = {
-			'yield': function(restart){
-				return new YIELDVALUE(SLICE(arguments, 0, -1));
-			},
 			'break': function(j){ return j },
 			'return': function(v){
 				return new RETURNVALUE(v)
@@ -203,6 +200,9 @@ NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 		f.bypass = function(g, restart){
 			return new YIELDVALUE(g)
 		};
+		f['yield'] = function(restart){
+			return new YIELDVALUE(SLICE(arguments, 0, -1));
+		};
 		return f;
 	}());
 
@@ -212,6 +212,10 @@ NECESSARIA_module.declare('stl', ['eisa.rt'], function(req, exp){
 		var o = {}
 		var r = f.call(o);
 		return r || o;
+	});
+
+	reg('ness_', function(M){
+		M.build(OBSTRUCTIVE_SCHEMATA_M)()()
 	});
 
 	//: prototypes

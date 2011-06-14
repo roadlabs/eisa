@@ -494,12 +494,14 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 		});
 	};
 
-	eisa.exec_ = function(libs, f){
-		eisa.using(libs, function(vals, enum_){
-			return f.call({
-				runtime: eisa.runtime, 
-				inits: vals
-			});
+	eisa.exec_ = function(libs, f, tp, args){
+		eisa.using(libs, function(vals){
+			var j = f(eisa.runtime, vals)
+			if(j instanceof Function) {
+				return j.apply(tp, args || []);
+			} else if (j.build) {
+				return j.build(EISA_OBSTRUCTIVE_SCHEMATA_M).apply(tp, args || [])();
+			}
 		});
 	};
 
@@ -527,10 +529,7 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 				},
 				start: function() {
 					if (!lfcr) this.compile();
-					lfcr.wrappedF.apply({
-						runtime: eisa.runtime,
-						inits: initvs
-					}, arguments);
+					eisa.exec_(libs, lfcr.func, this, arguments);
 				}
 			})
 		});

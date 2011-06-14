@@ -3,6 +3,9 @@ TEST = test
 BUILD = build
 TESTENV = testenv
 
+uglify_test = uglify -i 2 -b -nm -ns --overwrite
+uglify      = uglify --overwrite
+
 compose = cat $^ > $@
 
 all : eisa
@@ -42,7 +45,10 @@ libtest:
 testenv:
 	cp $(TESTENV)/* $(TEST)/
 
-test: testenv eisarttest lfctest libtest
+libsop:
+	-$(uglify_test) $(TEST)/stdenum.js
+
+test: testenv eisarttest lfctest libtest libsop
 	rm -rf $(TEST)/*/*~
 
 .PHONY: all eisa clean eisart lfc libs \

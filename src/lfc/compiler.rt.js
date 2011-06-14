@@ -30,7 +30,7 @@ NECESSARIA_module.declare("lfc/compiler.rt", ['eisa.rt'], function(require, expo
 			'UNKNOWN',
 			// Primary
 			'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'AWAIT', 'YIELD',
+			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'WAIT', 'YIELD',
 			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 			// Invocation

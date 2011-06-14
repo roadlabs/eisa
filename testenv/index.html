@@ -152,7 +152,7 @@
 						function(script){
 						script.asyncCompile(function(cm){
 							tracer('[LFC] Generated code:<ol>' + 
-								cm.generatedSource
+								('' + cm.func)
 									.replace(/&/g, '&amp;')
 									.replace(/</g, '&lt;')
 									.replace(/>/g, '&gt;')

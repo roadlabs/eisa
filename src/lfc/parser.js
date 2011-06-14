@@ -71,7 +71,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		TASK = 40,		//reserved for coro
 		LAMBDA = 41,
 		PASS = 42,
-		AWAIT = 44,
+		WAIT = 44,
 		USING = 45,
 		BACKSLASH = 501;
 
@@ -204,8 +204,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		':': COLON,
 		'|': THEN,
 		'.': DOT,
-		'..': AWAIT,
-		'!': AWAIT,
+		'..': WAIT,
+		'!': WAIT,
 		';': SEMICOLON,
 		'@': MY,
 		'&': ET,
@@ -222,6 +222,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 
 	var lex = exports.lex = function (input) {
 		var tokens = [], tokl = 0, options = {}, SPACEQ = {' ': true, '\t': true};
+		var output = {};
+
 		var make = function (t, v, p, isn) {
 			contt = false;
 			tokens[tokl++] = new Token(t, // type
@@ -230,8 +232,16 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					SPACEQ[input.charAt(p - 1)], // space before?
 					isn); // is name?
 		};
-		var option = function(name){
-			options[name] = true
+		var option = function(opt){
+			var a = opt.split(/\s+/);
+			switch(a[0]){
+				case 'option':
+					options[a[1]] = true;
+					break;
+				case 'module':
+					output.module = a[1];
+					break;
+			}
 		};
 		var contt = false;
 		var noImplicits = function () {
@@ -257,7 +267,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 
 				case SHARP:
 				case MY:
-				case AWAIT:
+				case WAIT:
 					make(t, s, n);
 					break;
 
@@ -299,7 +309,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		// This long and terrible regular expression matches every token.
 		// Parts are:
 		//  	((?:\/\/|--).*)                                       # comments
-		//  |	(?:^-![ \t]*option[ \t]+(\w+)[ \t]*$)                 # -! option  form
+		//  |	(?:^-![ \t]*([ \t\w]+)[ \t]*$)                        # -! option  form
 		//  |	([a-zA-Z_$][\w$]*)                                    # names
 		//  | (                                                       # string literals
 		//  		`[a-zA-Z_$][\w$]*                                 # backtick string
@@ -313,11 +323,11 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		//  |	(\n\s*)                                               # line breaks
 
 		var ou = input.replace(
-			(/((?:\/\/|--).*)|(?:^-![ \t]*option[ \t]+(\w+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'`])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
-			function (match, comment, optionname, nme, strlit, strunfin, number, symbol, newline, n, full) {
+			(/((?:\/\/|--).*)|(?:^-![ \t]*([ \t\w]+)[ \t]*$)|([a-zA-Z_$][\w$]*)|(`[a-zA-Z_$][\w$]*|'[^'\n]*(?:''[^'\n]*)*'|"""[\s\S]*?"""|"[^\\"\n]*(?:\\.[^\\"\n]*)*")|(["'`])|(0[xX][a-fA-F0-9]+|\d+(?:\.\d+(?:[eE]-?\d+)?)?)|([+\-*\/<>=!:%~][<>=~]*|\.\.|[()\[\]\{\}|@\\;,\.#&])|(\n\s*)/mg),
+			function (match, comment, opt, nme, strlit, strunfin, number, symbol, newline, n, full) {
 				after_space = false;
-				if(optionname) {
-					option(optionname);
+				if(opt) {
+					option(opt);
 				} if (nme) {
 					var nty = nameType(match);
 					if(nty === OPERATOR) noImplicits();
@@ -338,10 +348,10 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				return '';
 			});
 
-		return {
-			tokens : tokens,
-			options: options
-		}
+		output.tokens = tokens;
+		output.options = options;
+
+		return output;
 	};
 
 	var HAS_DUPL = function (arr) {
@@ -492,7 +502,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		var generateObstructiveness = function (node) {
 			if(!node || !node.type) return false;
 			var obs = false;
-			if(node.type === nt.YIELD ||node.type === nt.AWAIT || node.type === nt.BREAK || node.type === nt.RETURN){
+			if(node.type === nt.WAIT || node.type === nt.BREAK || node.type === nt.RETURN){
 				node.obstructive = true;
 				obs = true
 			};
@@ -792,7 +802,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 
 		var ISOBJLIT = function(){
 			if(
-					(next && next.isName && !(nextIs(TRY) || nextIs(AWAIT)) || nextIs(STRING)) 
+					(next && next.isName && !(nextIs(TRY) || nextIs(WAIT)) || nextIs(STRING)) 
 					&& shiftIs(2, COLON) 
 					&& !(shiftIs(3, WHEN) || shiftIs(3, OTHERWISE))
 					|| nextIs(ENDBRACE, CREND)
@@ -972,14 +982,15 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		};
 		var callExpression = function () {
 			var m = primary();
-			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT) || tokenIs(AWAIT)) {
+			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT) || tokenIs(WAIT)) {
 				switch (token.type) {
-					case AWAIT:
+					case WAIT:
 						if(workingScope.unCorable)
-							throw PE("Attempting to use AWAIT in a uncorable function");
+							throw PE("Attempting to use WAIT in a uncorable function");
 						workingScope.oProto = true;
-						var m = new Node(nt.AWAIT, { expression: m });
+						var m = new Node(nt.WAIT, { expression: m });
 						advance();
+						continue;
 					case STARTBRACE:
 						if (token.value === RDSTART) { // invocation f(a,b,c...)
 							advance();
@@ -1096,12 +1107,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				var t = advance(OPERATOR);
 				var n = callExpression();
 				return new Node(t.value === '-' ? nt.NEGATIVE : nt.NOT, { operand: n });
-			} else if (tokenIs(AWAIT)) {
-				advance(AWAIT);
-				if(workingScope.unCorable)
-					throw PE("Attempting to use AWAIT in a uncorable function");
-				workingScope.oProto = true;
-				return new Node(nt.YIELD, {operand: callExpression() });
 			} else {
 				return callExpression();
 			}
@@ -1737,13 +1742,14 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		
 		newScope();
 		var ws = workingScope;
-		ws.unCorable = true;
 		ws.parameters = new Node(nt.PARAMETERS, {
 			names: [],
 			anames: []
 		});
 		ws.code = statements();
 		ensure(!token, "Unexpected script ending");
+		if(ws.oProto)
+			generateObstructiveness(ws.code);
 
 		ws.thisOccurs = true;
 		
@@ -1751,17 +1757,18 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			ws.newVar(n);
 			// varname = this[varname]
 			ws.initHooks[n] = new Node(nt.MEMBER, {
-				left: new Node(nt.MEMBER, {
-					left: new Node(nt.THIS),
-					right: 'inits'
-				}),
+				left: new Node(nt.TEMPVAR, {name: 'INIT'}),
 				right: n
 			})
 		});
 
 	 	resolveVariables(ws, scopes, opt_explicit, {source: source, language: "lofn"});
 
-		return {scopes: scopes, options: input.options};
+		return {
+			scopes: scopes,
+			options: input.options,
+			module: input.module
+		};
 	};
 
 });
