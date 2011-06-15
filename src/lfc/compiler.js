@@ -1229,7 +1229,8 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 			return {
 				func: f,
 				source: finalSource,
-				generatedSource: generatedSource
+				generatedSource: generatedSource,
+				wrappedSource: 'function(' + [C_TEMP('RUNTIME'), C_TEMP('INIT')].join(',') + '){' + finalSource + '}'
 			}
 		}
 
@@ -1257,5 +1258,4 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 			}
 		}
 	};
-
 });

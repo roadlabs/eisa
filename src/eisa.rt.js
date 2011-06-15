@@ -460,25 +460,48 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 	eisa.Nai = Nai;
 
 
-
-	//: eisa-module-helpers
-	eisa.using = function(libs, f) {
-		var importings = [], immediates = [];
-		for (var i = 0; i < libs.length; i++) {
-			if (typeof libs[i] === 'string')
-				importings.push(libs[i]);
-			else
-				immediates.push(libs[i]);
-		};
-		module.provide(importings, function(require) {
+	if(module.provide){
+		//: eisa-module-helpers
+		eisa.using = function(libs, f) {
+			var importings = [], immediates = [];
+			for (var i = 0; i < libs.length; i++) {
+				if (typeof libs[i] === 'string')
+					importings.push(libs[i]);
+				else
+					immediates.push(libs[i]);
+			};
+			module.provide(importings, function(require) {
+				var vals = {}, obts = {}, YES = {};
+				for (var i = 0; i < importings.length; i++)
+					require.enumerate(libs[i], function(n, v) {
+						vals[n] = v;
+						obts[n] = YES
+					});
+				for (var i = 0; i < immediates.length; i++) {
+					var immlib = immediates[i];
+					for (var each in immlib)
+						if (EISA_OWNS(immlib, each)) {
+							vals[each] = immlib[each];
+							obts[each] = YES
+						};
+				};
+				var enumVars = function(f) {
+					for (var each in vals)
+						if (obts[each] === YES)
+							f(vals[each], each)
+				};
+				return f.call(vals, vals, enumVars);
+			});
+		}
+	} else {
+		eisa.using = function(libs, f){
+			var importings = [], immediates = [];
+			for (var i = 0; i < libs.length; i++) {
+				if (typeof libs[i] === 'string') libs[i] = require(libs[i]);
+			}
 			var vals = {}, obts = {}, YES = {};
-			for (var i = 0; i < importings.length; i++)
-				require.enumerate(libs[i], function(n, v) {
-					vals[n] = v;
-					obts[n] = YES
-				});
-			for (var i = 0; i < immediates.length; i++) {
-				var immlib = immediates[i];
+			for (var i = 0; i < libs.length; i++) {
+				var immlib = libs[i];
 				for (var each in immlib)
 					if (EISA_OWNS(immlib, each)) {
 						vals[each] = immlib[each];
@@ -491,8 +514,8 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 						f(vals[each], each)
 			};
 			return f.call(vals, vals, enumVars);
-		});
-	};
+		}
+	}
 
 	eisa.exec_ = function(libs, f, tp, args){
 		eisa.using(libs, function(vals){
