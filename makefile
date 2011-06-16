@@ -1,92 +1,124 @@
 SRC = src
 TEST = test
+TEST_SCRIPTS = $(TEST)/scripts
 BUILD = build
 TESTENV = testenv
 LFC = lfc
-LFCM = lfc/node_modules
-LFCT = lfc/targets
+LFC_MODULES = lfc/node_modules
+LFC_TARGETS = lfc/targets
 
 uglify_test = uglifyjs -i 2 -b -nm -ns
 uglify      = uglifyjs
-nessa       = node tool/nessa.js
+nessat      = node tool/nessat.js
 lfc_b       = node lfc -t necessaria
 
-# Web Test
 
-all : eisa
-
-eisa : eisart lfc libs
+all: lfc test 
 
 clean:
 	-rm -rf $(BUILD)/*
+	-rm -rf $(LFC)/*
 	-rm -rf $(TEST)/*
 
-eisart:
-	cp $(SRC)/*.rt.js $(BUILD)/
-libs:
-	cp $(SRC)/lib/*.js $(BUILD)/
+love:
+	@echo Not War?
 
-lfc_test:
-	@-mkdir $(TEST)/lfc
-	cp $(SRC)/lfc/*.js $(TEST)/lfc/
+fLFC = $(BUILD)/lfc/compiler.rt.js \
+	   $(BUILD)/lfc/parser.js \
+	   $(BUILD)/lfc/compiler.js
+fRuntime     = $(BUILD)/eisa.rt.js
+fNecessaria  = $(BUILD)/mod.rt.js
+fCommonLibs  = $(BUILD)/stl.js $(BUILD)/internl.js $(BUILD)/mod.js
+fLFLibs      = $(BUILD)/stdenum.js
+fBrowserLibs = $(fCommonLibs) $(BUILD)/async.js
 
-eisart_test:
-	cp $(SRC)/*.rt.js $(TEST)/
-
-lflibs = $(TEST)/stdenum.js
-
-$(lflibs):
-	$(lfc_b) $< | $(uglify_test) > $@
-	
-$(TEST)/stdenum.js : $(SRC)/lib/stdenum.lf
-
-libs_test: $(lflibs)
-	cp $(SRC)/lib/*.js $(TEST)/
-
-testenv:
-	cp $(TESTENV)/* $(TEST)/
-
-test: testenv eisart_test lfc_test libs_test
-	rm -rf $(TEST)/*/*~
-
+#
 # LFC: Command line utlity for Node.js
+#
 
-lfcdirs:
-	@-mkdir $(LFC)
-	@-mkdir $(LFC)/targets
-	@-mkdir $(LFCM)
-	@-mkdir $(LFCM)/lfc
+lfcDirs:
+	@@-mkdir $(LFC)
+	@@-mkdir $(LFC)/targets
+	@@-mkdir $(LFC_MODULES)
+	@@-mkdir $(LFC_MODULES)/lfc
+
+nessaModules = $(subst $(BUILD), $(LFC_MODULES), $(fRuntime)) \
+			   $(subst $(BUILD), $(LFC_MODULES), $(fLFC)) 
+$(nessaModules): $(LFC_MODULES)/%.js : $(SRC)/%.js
+	$(nessat) $< $@
+
+nessaLibs = $(LFC_MODULES)/stl.js $(LFC_MODULES)/mod.js
+$(nessaLibs):
+	$(nessat) $< $@
+$(LFC_MODULES)/stl.js: $(SRC)/lib/stl.js
+$(LFC_MODULES)/mod.js: $(SRC)/lib/mod.node.js
 
 
-nessaModules = $(LFCM)/eisa.rt.js \
-			   $(LFCM)/lfc/compiler.rt.js $(LFCM)/lfc/parser.js $(LFCM)/lfc/compiler.js \
-			   $(LFCM)/stl.js $(LFCM)/mod.js
-$(nessaModules):
-	$(nessa) $< $@
-
-$(LFCM)/eisa.rt.js: $(SRC)/eisa.rt.js
-$(LFCM)/lfc/compiler.rt.js: $(SRC)/lfc/compiler.rt.js
-$(LFCM)/lfc/parser.js: $(SRC)/lfc/parser.js
-$(LFCM)/lfc/compiler.js: $(SRC)/lfc/compiler.js
-$(LFCM)/stl.js: $(SRC)/lib/stl.js
-$(LFCM)/mod.js: $(SRC)/lib/mod.node.js
-
-lfcComponents = $(LFCM)/opts.js $(LFCT)/node.js $(LFCT)/necessaria.js $(LFCT)/node.inc $(LFC)/lfc.js
-$(lfcComponents):
+LFCTargets = $(LFC_TARGETS)/node.js $(LFC_TARGETS)/necessaria.js $(LFC_TARGETS)/node.inc
+$(LFCTargets): $(LFC_TARGETS)/% : $(SRC)/node/targets/%
 	$(uglify) -o $@ $<
 
-$(LFCM)/opts.js: tool/opts.js
-$(LFCT)/node.inc: $(SRC)/node/targets/node.inc
-$(LFCT)/node.js: $(SRC)/node/targets/node.js
-$(LFCT)/necessaria.js: $(SRC)/node/targets/necessaria.js
+LFCComponents = $(LFC_MODULES)/opts.js \
+				$(LFC)/lfc.js
+$(LFCComponents):
+	$(uglify) -o $@ $<
+$(LFC_MODULES)/opts.js: tool/opts.js
 $(LFC)/lfc.js: $(SRC)/node/lfc.js
 
-lfcmodules: lfcdirs $(nessaModules) $(lfcComponents)
 
-$(LFC)/package.json : $(SRC)/node/lfc.json
+$(LFC)/package.json: $(SRC)/node/lfc.json
 	cp $< $@
 
-lfc : lfcmodules $(LFC)/package.json
 
-.PHONY: all eisa clean eisart lfc libs \
-	testenv eisarttest lfctest libtest test lfcdirs libsop lfcmodules
+lfcCore: lfcDirs $(nessaModules) $(nessaLibs) $(LFCTargets) $(LFCComponents) $(LFC)/package.json
+lfc: lfcCore
+
+#
+# Web Test
+#
+
+fTestRuntime = $(subst $(BUILD), $(TEST_SCRIPTS), $(fRuntime)) \
+			   $(TEST_SCRIPTS)/mod.rt.js
+$(fTestRuntime): $(TEST_SCRIPTS)/%.js : $(SRC)/%.js
+	cp $< $@
+eisart_test: $(fTestRuntime)
+
+
+fLFCTest = $(subst $(BUILD), $(TEST_SCRIPTS), $(fLFC))
+$(fLFCTest): $(TEST_SCRIPTS)/%.js : $(SRC)/%.js
+	cp $< $@
+
+lfcdirs_test:
+	@@-mkdir $(TEST_SCRIPTS)/lfc
+
+lfc_test: lfcdirs_test $(fLFCTest)
+
+
+fBrowserLibsTest = $(subst $(BUILD), $(TEST_SCRIPTS), $(fBrowserLibs))
+$(fBrowserLibsTest): $(TEST_SCRIPTS)/%.js : $(SRC)/lib/%.js
+	cp $< $@
+
+fLFLibsTest = $(subst $(BUILD), $(TEST_SCRIPTS), $(fLFLibs))
+$(fLFLibsTest): $(TEST_SCRIPTS)/%.js : $(SRC)/lib/%.lf
+	$(lfc_b) $< | $(uglify_test) -o $@	
+
+libs_test: $(fBrowserLibsTest) $(fLFLibsTest)
+
+
+fTestEnv = $(TEST)/index.html $(TEST_SCRIPTS)/inputbox.js
+$(fTestEnv): 
+	cp $< $@
+$(TEST)/index.html: $(TESTENV)/index.html
+$(TEST_SCRIPTS)/inputbox.js: $(TESTENV)/inputbox.js
+
+testdir:
+	@-mkdir $(TEST)
+	@-mkdir $(TEST_SCRIPTS)
+
+testenv: testdir $(fTestEnv)
+
+test: lfcCore testenv eisart_test lfc_test libs_test
+
+.PHONY: all love clean \
+	lfcDirs lfcModules lfcCore lfc \
+	testdir testenv lfc_test libs_test eisart_test test

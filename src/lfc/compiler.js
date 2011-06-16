@@ -3,12 +3,6 @@
 //	:info:			The code generator for Eisa Runtime
 
 NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/parser'], function (require, exports) {
-	var TO_ENCCD = function (name) {
-		return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
-			return '$' + m.charCodeAt(0).toString(36) + '$'
-		});
-	};
-
 	var eisa = require('eisa.rt');
 	var lfcrt = require('lfc/compiler.rt');
 	var nt = lfcrt.NodeType;
@@ -17,32 +11,12 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 	var EISA_UNIQ = eisa.runtime.UNIQ;
 	var OWNS = eisa.runtime.OWNS;
 
-	var config;
-
-	var C_NAME,
-		C_LABELNAME,
-		T_THIS,
-		T_ARGN,
-		T_ARGS,
-		BEFORE_BLOCK,
-		AFTER_BLOCK,
-		JOIN_STMTS,
-		THIS_BIND,
-		ARGS_BIND,
-		ARGN_BIND,
-		C_TEMP,
-		BIND_TEMP,
-		INDENT,
-		currentBlock;
-
-	var $ = function(template, items_){
-		var a = arguments;
-		return template.replace(/%(\d+)/g, function(m, $1){
-			return a[parseInt($1, 10)] || '';
+	"Code Emission Util Functions"
+	var TO_ENCCD = function (name) {
+		return name.replace(/[^a-zA-Z0-9_]/g, function (m) {
+			return '$' + m.charCodeAt(0).toString(36) + '$'
 		});
 	};
-
-	var SEQ = function(a, b){ return '(' + a + ',' + b + ')' }
 	var STRIZE = function(){
 		var CTRLCHR = function (c) {
 			var n = c.charCodeAt(0);
@@ -55,8 +29,57 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 				.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
 		};
 	}();
+
+
+	var C_NAME = function (name) { return TO_ENCCD(name) + '_$' },
+		C_LABELNAME = function (name) { return TO_ENCCD(name) + '_$_L' },
+		C_TEMP = function (type){ return type + '_$_' },
+		T_THIS = function (env) { return '_$_THIS' },
+		T_ARGN = function(){ return '_$_ARGND' },
+		T_ARGS = function(){ return '_$_ARGS' };
+	
+	var INDENT = function(s){ return s.replace(/^/gm, '    ') };
+	var JOIN_STMTS = function (statements) {
+		var ans = [], ansl = 0, statement;
+		for(var i = 0; i < statements.length; i++) if((statement = statements[i])){
+			statement = statement.replace(/^[\s;]+/g, '').replace(/[\s;]+$/g, '')
+			if(/[^\s]/.test(statement))
+				ans[ansl++] = statement;
+		}
+		return '\n' + INDENT(ans.join(';\n')) + ';\n';
+	}
+	
+	var THIS_BIND = function (env) {
+		return (!env.thisOccurs || env.rebindThis) ? '' : 'var ' + T_THIS() + ' = (this === EISA_M_TOP ? null : this)'
+	}
+	var ARGS_BIND = function (env) {
+		return (!env.argsOccurs || env.rebindThis) ? '' : 'var ' + T_ARGS() + ' = EISA_SLICE(arguments, 0)'
+	}
+	var ARGN_BIND = function (env) {
+		return (env.argnOccurs && !env.rebindThis) ? 
+			'var ' + T_ARGN() + ' = EISA_CNARG(arguments[arguments.length - 1])' : ''
+	}
+	var TEMP_BIND = function (env, tempName) {
+		if(tempName === 'DOF')
+			return C_TEMP('DOF') + ' = (function(t, a){ return function(f){ if(arguments.length === 1) return f.apply(t, a);\nelse return f.apply(t, EISA_SLICE(arguments, 1).concat(EISA_SLICE(a, arguments.length - 1))) }})('
+					+ T_THIS(env) + ',' + T_ARGS(env) + ')';
+		else if(tempName === 'DOF1')
+			return C_TEMP('DOF1') + ' = (function(t, a){ return function(f){ return f.apply(t, a) }})('
+					+ T_THIS(env) + ',' + T_ARGS(env) + ')';
+		else return C_TEMP(tempName);
+	}
+
+	var $ = function(template, items_){
+		var a = arguments;
+		return template.replace(/%(\d+)/g, function(m, $1){
+			return a[parseInt($1, 10)] || '';
+		});
+	};
+
+	var SEQ = function(a, b){ return '(' + a + ',' + b + ')' }
 	var GETV = function (node, env) { return C_NAME(node.name) };
 	var SETV = function (node, val, env) { return '(' + C_NAME(node.name) + '=' + val + ')' };
+
 	var SPECIALNAMES = {
 		"break":1, "continue":1, "do":1, "for":1, "import":1, 
 		"new":1, "this":1, "void":1, "case":1, 
@@ -119,7 +142,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 				vars.push(C_NAME(locals[i]));
 			}
 		for (var i = 0; i < temps.length; i++)
-			temps[i] = BIND_TEMP(tree, temps[i]);
+			temps[i] = TEMP_BIND(tree, temps[i]);
 
 		s = JOIN_STMTS([
 				THIS_BIND(tree),
@@ -169,7 +192,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 				vars.push(C_NAME(locals[i]));
 			}
 		for (var i = 0; i < temps.length; i++)
-			temps[i] = BIND_TEMP(tree, temps[i]);
+			temps[i] = TEMP_BIND(tree, temps[i]);
 
 		var pars = tree.parameters.names.slice(0), temppars = listParTemp(tree);
 		for (var i = 0; i < pars.length; i++)
@@ -1135,81 +1158,10 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 	}
 
 
-	// Configuration binding
-	var bindConfig = function (vmConfig) {
-		config = vmConfig;
-		C_NAME = config.varName;
-		C_LABELNAME = config.label;
-		T_THIS = config.thisName;
-		JOIN_STMTS = config.joinStatements;
-		THIS_BIND = config.thisBind;
-		ARGN_BIND = config.argnBind;
-		ARGS_BIND = config.argsBind;
-		T_ARGN = config.argnName;
-		T_ARGS = config.argsName;
-		C_TEMP = config.tempName;
-		BIND_TEMP = config.bindTemp;
-		INDENT = config.indent;
-		currentBlock = null;
-	};
-	// Default Lofn compilation config
-	var standardTransform = function () {
-		var _indent = 0,
-			c;
-		return c = {
-			varName: function (name) {
-				return TO_ENCCD(name) + '_$'
-			},
-			label: function (name) {
-				return TO_ENCCD(name) + '_$_L'
-			},
-			tempName: function (type){
-				return type + '_$_'
-			},
-			thisName: function (env) {
-				return '_$_THIS'
-			},
-			argnName: function(){ return '_$_ARGND' },
-			argsName: function(){
-				return '_$_ARGS'
-			},
-			thisBind: function (env) {
-				return (!env.thisOccurs || env.rebindThis) ? '' : 'var ' + c.thisName() + ' = (this === EISA_M_TOP ? null : this)'
-			},
-			argnBind: function (env) {
-				return (env.argnOccurs && !env.rebindThis) ? 'var ' + c.argnName() + ' = EISA_CNARG(arguments[arguments.length - 1])' : ''
-			},
-			argsBind: function (env) {
-				return (!env.argsOccurs || env.rebindThis) ? '' : 'var ' + c.argsName() + ' = EISA_SLICE(arguments, 0)'
-			},
-			bindTemp: function (env, tempName) {
-				if(tempName === 'DOF')
-					return c.tempName('DOF') + ' = (function(t, a){ return function(f){ if(arguments.length === 1) return f.apply(t, a);\nelse return f.apply(t, EISA_SLICE(arguments, 1).concat(EISA_SLICE(a, arguments.length - 1))) }})('
-							+ c.thisName(env) + ',' + c.argsName(env) + ')';
-				else if(tempName === 'DOF1')
-					return c.tempName('DOF1') + ' = (function(t, a){ return function(f){ return f.apply(t, a) }})('
-							+ c.thisName(env) + ',' + c.argsName(env) + ')';
-				else
-					return c.tempName(tempName);
-			},
-			joinStatements: function (statements) {
-				var ans = [], ansl = 0, statement;
-				for(var i = 0; i < statements.length; i++) if((statement = statements[i])){
-					statement = statement.replace(/^[\s;]+/g, '').replace(/[\s;]+$/g, '')
-					if(/[^\s]/.test(statement))
-						ans[ansl++] = statement;
-				}
-				return '\n' + c.indent(ans.join(';\n')) + ';\n';
-			},
-			indent: function(s){ return s.replace(/^/gm, '    ') }
-		}
-	}();
 	//============
 	exports.lex = require('lfc/parser').lex;
 	exports.parse = require('lfc/parser').parse;
-	exports.Compiler = function (ast, vmConfig) {
-
-		bindConfig(vmConfig || standardTransform);
+	exports.Compiler = function (ast) {
 		
 		var trees = ast.scopes;
 		var enter = trees[0];
