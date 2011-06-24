@@ -22,6 +22,12 @@ var module = NECESSARIA_module = function(){
 	}();
 	var hasOwnProperty = Object.prototype.hasOwnProperty;
 
+	var hasEigenPropertyQ = function(x){
+		for(var item in x)
+			if (hasOwnProperty.call(x, item))
+				return true
+	}
+
 	// A Universal N-way joiner.
 	var Join = function(waitings, listener, callback){
 		var count = waitings.length;
@@ -51,12 +57,15 @@ var module = NECESSARIA_module = function(){
 			dependents = []
 		};
 		var m = modules[id2Uri(name)];
+		if(!m){
+			m = modules[id2Uri(name)] = derive(module_M);
+		}
 		Join(ids2Uris(dependents), fetch, function(){
 			m.loaded = true;
 			var exports = {};
 			factory(createRequire(dependents), exports, function(ret){
 				m.ready = true;
-				m.exports = ret || exports;
+				m.exports = hasEigenPropertyQ(exports) ? exports : ret;
 				log("Declared Module " + name);
 				m.done()
 			});
