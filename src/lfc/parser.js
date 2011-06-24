@@ -15,11 +15,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 	};
 
 
-	var LFC_ENABLEREBINDQ = false;
-	// I turned THIS and ARGUMENTS rebinding into disabled
-	// If you need this, change it into TRUE.
-	// 我把 this/arguments 重绑定给关掉了
-	// 如果需要，把上面这行改成 true
 
 	var NodeType = lfcrt.NodeType;
 	var ScopedScript = lfcrt.ScopedScript;
@@ -389,13 +384,13 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				if (scope.usedVariables[each] === true) {
 					if(!(scope.variables[each] > 0)){
 						if(!explicitQ) {
-							eisa.log(PW('Undeclared variable "' + each + '"' ,
+							eisa.console.warn(PW('Undeclared variable "' + each + '"',
 								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0));
 							scope.newVar(each);
 							trees[scope.variables[each] - 1].locals.push(each);
 						} else {
 							throw PE(
-								'Undeclared variable "' + each + '" when using `!option explicit`.',
+								'Undeclared variable "' + each + '" when using `-!option explicit`.',
 								(scope.usedVariablesOcc && scope.usedVariablesOcc[each]) || 0
 							)
 						}
@@ -550,10 +545,9 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			if (token) curline = token.line;
 			return t;
 		};
-		var newScope = function (rebindQ) {
+		var newScope = function () {
 			var n = scopes.length;
 			var s = new ScopedScript(n + 1, workingScope);
-			s.rebindThis = rebindQ;
 			if (workingScope) {
 				workingScope.hasNested = true;
 				workingScope.nest.push(n);
@@ -718,8 +712,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		// COMMA expression(ALAP)
 
 		var expressionalBody = function(p){
-			advance(COMMA);
-			var n = newScope(LFC_ENABLEREBINDQ);
+			advance(OPERATOR, "=");
+			var n = newScope();
 			var s = workingScope;
 			s.unCorable = true;
 			s.parameters = p || new Node(nt.PARAMETERS, { names: [], anames: [] });
@@ -731,12 +725,12 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			});
 		}
 
-		var curryBody = function (p) {
+		var curryBody = function (p, acceptAssignQ) {
 			var n = newScope(), s = workingScope;
 			workingScope.parameters = p;
 			workingScope.ready();
 			workingScope.code = new Node(nt.SCRIPT, {
-				content: [new Node(nt.RETURN, { expression: functionLiteral(true) })]
+				content: [new Node(nt.RETURN, { expression: functionLiteral(acceptAssignQ) })]
 			});
 			endScope();
 			return new Node(nt.FUNCTION, { tree: s.id });
@@ -745,21 +739,21 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		//@functionLiteral
 		// Function literal
 		// "function" [Parameters] FunctionBody
-		var functionLiteral = function (rebind) {
+		var functionLiteral = function (acceptAssignQ) {
 			var f, p;
 			if (tokenIs(STARTBRACE, RDSTART)) {
 				p = parameters();
 			};
 			if (tokenIs(STARTBRACE, RDSTART)) { // currying arguments
-				f = curryBody(p, rebind);
+				f = curryBody(p, acceptAssignQ);
 			} else if (p && tokenIs(COLON)) {
-				f = colonBody(p, rebind)
-			} else if (p && tokenIs(COMMA)) {
+				f = colonBody(p)
+			} else if (p && acceptAssignQ && tokenIs(OPERATOR, '=')) {
 				if(opt_colononly)
-					throw PE('Only COLON bodies can be used due to `!option colononly`');
-				f = expressionalBody(p, rebind);
+					throw PE('Only COLON bodies can be used due to `-!option colononly`');
+				f = expressionalBody(p);
 			} else {
-				f = functionBody(p, rebind);
+				f = functionBody(p);
 			}
 			return f;
 		};
@@ -808,7 +802,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					|| nextIs(ENDBRACE, CREND)
 			) {
 				if(opt_forfunction)
-					throw PE('Object literal denied due to !option forfunction');
+					throw PE('Object literal denied due to -!option forfunction');
 				return true
 			}
 		};
@@ -816,7 +810,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		// Lambda Expression content
 		var lambdaCont = function (p) {
 			advance(LAMBDA);
-			var r = newScope(LFC_ENABLEREBINDQ);
+			var r = newScope();
 			var s = workingScope;
 			s.parameters = p;
 			s.unCorable = true;
@@ -880,7 +874,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 						advance();
 						if(tokenIs(ENDBRACE, RDEND)){
 							if(opt_filledbrace)
-								throw PE('() for undefined is disabled due to !option filledbrace');
+								throw PE('() for undefined is disabled due to -!option filledbrace');
 							advance();
 							return new Node(nt.LITERAL, {value: {map: 'undefined'}})
 						}
@@ -922,10 +916,9 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					} else {
 						// implicit SHARPs
 						if(opt_sharpno)
-							throw PE('Implicit # was disabled due to !option sharpno', p.position + 1);
+							throw PE('Implicit # was disabled due to -!option sharpno', p.position + 1);
 						var s = workingScope;
-						while(s && s.rebindThis) s = scopes[s.upper - 1];
-						s.sharpNo ++;
+						s.sharpNo++;
 						if(s.sharpNo > s.parameters.names.length) {
 							ScopedScript.useTemp(s, 'IARG' + (s.sharpNo - 1), ScopedScript.PARAMETERTEMP);
 							return new Node(nt.TEMPVAR, {
@@ -982,7 +975,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		};
 		var callExpression = function () {
 			var m = primary();
-			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(DOT) || tokenIs(WAIT)) {
+			out: while (tokenIs(STARTBRACE) && !token.spaced || tokenIs(MY) && nextIs(STARTBRACE) || tokenIs(DOT) || tokenIs(WAIT)) {
 				switch (token.type) {
 					case WAIT:
 						if(workingScope.unCorable)
@@ -991,6 +984,9 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 						var m = new Node(nt.WAIT, { expression: m });
 						advance();
 						continue;
+					case MY:
+						advance()
+						m = new Node(nt.CTOR, {expression: m});
 					case STARTBRACE:
 						if (token.value === RDSTART) { // invocation f(a,b,c...)
 							advance();
@@ -1417,6 +1413,13 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					left: new Node(nt.VARIABLE, { name: v.name }),
 					right: expression()
 				});
+			} else if (nextIs(STARTBRACE, RDSTART)){
+				var v = variable();
+				workingScope.newVar(v.name);
+				return new Node(nt['='], {
+					left: new Node(nt.VARIABLE, { name: v.name }),
+					right: functionLiteral(true)
+				});
 			} else {
 				var a = [vardecl()];
 				while (token && token.type === COMMA) {
@@ -1493,7 +1496,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				return s;
 			} else if (tokenIs(COMMA)) {
 				if(opt_colononly)
-					throw PE('Only COLON bodies can be used due to `!option colononly`');
+					throw PE('Only COLON bodies can be used due to `-!option colononly`');
 				advance();
 				var s = statement_r();
 		//		while (token && token.type === SEMICOLON) advance();
@@ -1524,7 +1527,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			} else if (tokenIs(COMMA)){
 				advance(COMMA);
 				if(opt_colononly)
-					throw PE('Only COLON bodies can be used due to `!option colononly`');
+					throw PE('Only COLON bodies can be used due to `-!option colononly`');
 				n.thenPart = blocky(statement_r());
 				while(tokenIs(SEMICOLON)) advance();
 				if(tokenIs(ELSE) && (nextIs(IF) || nextIs(COMMA))){
@@ -1713,24 +1716,21 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			}
 		}
 		var statements = function (fin, fin2) {
-			var script = new Node(nt.SCRIPT);
+			var script = new Node(nt.SCRIPT, {content: []});
 			var _t = endS, s;
-			stripSemicolons();
-			s = statement();
-			var a = s ? [s] : [];
 
+			stripSemicolons();
+			if (tokenIs(fin) || tokenIs(END) || tokenIs(ENDBRACE, CREND) || tokenIs(fin2)) { return script };
+			script.content.push(statement());
 
 			while (endS && token) {
 				curline = token.line;
 				endS = false;
 				stripSemicolons();
-				if (token && (tokenIs(fin) || tokenIs(END) || tokenIs(ENDBRACE, CREND) || tokenIs(fin2))) break;
-				s = statement();
-				if(s)
-					a.push(s);
+				if (tokenIs(fin) || tokenIs(END) || tokenIs(ENDBRACE, CREND) || tokenIs(fin2)) break;
+				script.content.push(statement());
 			}
 			//ensure(!token || token.type === fin, "Unfinished statement block");
-			script.content = a;
 			endS = _t;
 			return script;
 		};

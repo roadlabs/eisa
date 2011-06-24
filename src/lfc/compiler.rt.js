@@ -7,8 +7,6 @@ NECESSARIA_module.declare("lfc/compiler.rt", ['eisa.rt'], function(require, expo
 	var eisa = require('eisa.rt');
 	var Nai = eisa.Nai;
 
-	var warn = function(s){eisa.log(s)};
-
 	var derive = eisa.derive;
 	
 	var CompileErrorMeta = exports.CompileErrorMeta = function(prefix){
@@ -30,7 +28,7 @@ NECESSARIA_module.declare("lfc/compiler.rt", ['eisa.rt'], function(require, expo
 			'UNKNOWN',
 			// Primary
 			'VARIABLE', 'TEMPVAR', 'THIS', 'LITERAL', 'ARRAY', 'OBJECT',
-			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'WAIT', 'YIELD',
+			'ARGUMENTS', 'CALLEE', 'ARGN', 'GROUP', 'WAIT', 'YIELD', 'CTOR',
 			// Membering
 			'MEMBER', 'ITEM', 'MEMBERREFLECT', 
 			// Invocation

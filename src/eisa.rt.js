@@ -78,8 +78,25 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 
 	//: AUX-METHODS
 	var EISA_M_TOP = function() {return this}();
-	var EISA_IINVOKE = function(p, s) {
-		return p.item(s).apply(p, EISA_SLICE(arguments,2))
+	var EISA_IINVOKE = function(p, s, displacement, args) {
+		return EISA_NINVOKE(p, p.item(s), displacement, args)
+	}
+	var EISA_NINVOKE = function(p, f, displacement, args, asyncQ) {
+		var na = new NamedArguments();
+		var ca = [];
+		for(var i = 0; i < displacement.length; i++) {
+			if(typeof displacement[i] === 'string')
+				na[displacement[i]] = args[i]
+			else
+				ca.push(args[i])
+		};
+		var invokeArgs = ca.concat(na);
+		if(asyncQ){
+			t = invokeArgs[invokeArgs.length - 1]
+			invokeArgs[invokeArgs.length - 1] = invokeArgs[invokeArgs.length - 2]
+			invokeArgs[invokeArgs.length - 2] = t
+		}
+		return f.apply(p, invokeArgs);
 	}
 	var EISA_RMETHOD = function(l, r, m) {
 		return r[m](l)
@@ -435,14 +452,14 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 	var eisa = exports;
 	eisa.version = 'hoejuu';
 
-	eisa.log = function(message) {};
+	eisa.console = { warn: function(){} }
 
 	eisa.runtime = eisa.rt = {
 		CNARG: EISA_CNARG,
 		CREATERULE: EISA_CREATERULE,
 		IINVOKE: EISA_IINVOKE,
+		NINVOKE: EISA_NINVOKE,
 		M_TOP: EISA_M_TOP,
-		NamedArguments: EISA_NamedArguments,
 		OBSTRUCTIVE: EISA_OBSTRUCTIVE,
 		OBSTRUCTIVE_SCHEMATA_M: EISA_OBSTRUCTIVE_SCHEMATA_M,
 		OWNS: EISA_OWNS,
@@ -525,36 +542,6 @@ NECESSARIA_module.declare("eisa.rt", function(require, exports) {
 			} else if (j.build) {
 				return j.build(EISA_OBSTRUCTIVE_SCHEMATA_M).apply(tp, args || [])();
 			}
-		});
-	};
-
-	//: eisa-script
-	eisa.languages = {};
-	eisa.Script = function(source, language, config, libraries, callback) {
-
-		var libs = ['stl', 'mod'].concat(libraries || []);
-
-		eisa.using(libs, function(initvs, inita) {
-			var ast = language.parse(language.lex(source), source, inita);
-			var lfcr;
-
-			return callback({
-				compile: function() {
-					lfcr = language.Compiler(ast, config).compile(); 
-					return lfcr;
-				},
-				asyncCompile: function(onSuccess, onStep) {
-					language.Compiler(ast, config).asyncCompile(
-						function(cm) {
-							lfcr = cm;
-							onSuccess.apply(this, arguments)
-						}, onStep);
-				},
-				start: function() {
-					if (!lfcr) this.compile();
-					eisa.exec_(libs, lfcr.func, this, arguments);
-				}
-			})
 		});
 	};
 

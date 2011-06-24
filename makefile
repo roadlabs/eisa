@@ -27,6 +27,7 @@ love:
 
 fLFC = $(BUILD)/lfc/compiler.rt.js \
 	   $(BUILD)/lfc/parser.js \
+	   $(BUILD)/lfc/codegen.js \
 	   $(BUILD)/lfc/compiler.js
 fRuntime       = $(BUILD)/eisa.rt.js
 fNecessaria    = $(BUILD)/mod.rt.js

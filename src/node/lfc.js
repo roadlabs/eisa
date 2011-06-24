@@ -9,7 +9,7 @@ var pro = require('uglify-js').uglifya
 var target = require('./targets/necessaria');
 
 var globalVars = {};
-var initModules = [];
+var initModules = ['stl', 'mod'];
 
 var STRIZE = function(){
 	var CTRLCHR = function (c) {
@@ -34,8 +34,8 @@ opts.parse([
 ], [{name: 'input', required: true, callback: function(value){
 	path.exists(value, function(existQ){
 		if(existQ){
-			new eisa.Script(require('fs').readFileSync(value, 'utf-8'), 
-				compiler,
+			new compiler.Script(
+				require('fs').readFileSync(value, 'utf-8'), 
 				null,
 				[globalVars].concat(initModules).concat(target.clibs || {}),
 				function(script){

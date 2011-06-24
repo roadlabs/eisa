@@ -144,25 +144,24 @@
 				var infoout = G_TRACE('info');
 				var tracel = infoout.tracel;
 				var tracer = infoout.traceraw;
-				eisa.log = function(message){ tracel(message) }
-				var script = new eisa.Script(document.getElementById('input').value,
-						require('lfc/compiler'),
-						null,
-						['internl', 'stdenum', output, { log: function(){console.log.apply(console, arguments)} }],
-						function(script){
-						script.asyncCompile(function(cm){
-							tracer('[LFC] Generated code:<ol>' + 
-								('' + cm.func)
-									.replace(/&/g, '&amp;')
-									.replace(/</g, '&lt;')
-									.replace(/>/g, '&gt;')
-									.replace(/^/gm, '<li>')
-									.replace(/$/gm, '</li>')
-									.replace(/\n/g, '') + '</ol>');
-							tracel('[ESA] Started Master Execution.');
-							script.start();
-							tracel('[ESA] Master Execution finished.');
-						}, function(t,i,b){tracel('[LFC] done function #'+i+' (@'+t.id+')')});
+				eisa.console.warn = tracel;
+				var script = new require('lfc/compiler').Script(
+					document.getElementById('input').value, // source
+					null,                                   // additional configs
+					['stl', 'mod', 'internl', 'stdenum', output, { log: function(){console.log.apply(console, arguments)} }], // libs
+					function(script){
+						var cm = script.compile();
+						tracer('[LFC] Generated code:<ol>' + 
+							('' + cm.func)
+								.replace(/&/g, '&amp;')
+								.replace(/</g, '&lt;')
+								.replace(/>/g, '&gt;')
+								.replace(/^/gm, '<li>')
+								.replace(/$/gm, '</li>')
+								.replace(/\n/g, '') + '</ol>');
+						tracel('[ESA] Started Master Execution.');
+						script.start();
+						tracel('[ESA] Master Execution finished.');
 					});
 			};
 		});
