@@ -598,8 +598,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			return t.value;
 		};
 		var name = function () {
-			if(token.isName) var t = advance();	
-			else throw PE("A name is needed!");
+			if(token && token.isName) var t = advance();	
+			else throw PE("A name is needed here");
 			return t.value;
 		};
 
@@ -1074,6 +1074,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			nc.args = (nc.args || []).concat(args);
 			nc.names = (nc.names || []).concat(names);
 			nc.nameused = nc.nameused || nameused;
+
+			ensure(!(nc.func && nc.func.type === nt.CTOR && nc.nameused), "Unable to use named arguments inside old-style Constructior5 invocation");
 			return unfinished
 		};
 
@@ -1251,6 +1253,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 
 			var right, c = unary();
 			if (tokenIs(OPERATOR, '=')){
+				ensure(c.type === nt.VARIABLE || c.type === nt.ITEM || c.type === nt.MEMBER || c.type === nt.MEMBERREFLECT || c.type === nt.TEMPVAR,
+						"Invalid assignment");
 				advance();
 				return new Node(nt['='], {
 					left: c,
