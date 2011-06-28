@@ -65,9 +65,10 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		FINALLY = 39,
 		TASK = 40,		//reserved for coro
 		LAMBDA = 41,
-		PASS = 42,
+		// PASS = 42,
 		WAIT = 44,
 		USING = 45,
+		LET = 46,
 		BACKSLASH = 501;
 
 	var Token = function (t, v, p, s, i) {
@@ -149,6 +150,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		'do': DO,
 		'try': TRY,
 		'TASK': TASK,
+		'let': LET,
 //		'pass': PASS,
 		'using': USING
 	};
@@ -413,7 +415,10 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 
 		var Node = function (type, props) {
 			var p = props || {};
-			p.type = type , p.bp = p.bp || 0, p.line = curline;
+			p.type = type , p.bp = p.bp || 0;
+			if(token){
+				p.position = token.position
+			}
 			return p
 		};
 
@@ -518,7 +523,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			workingScopes = [],
 			workingScope, 
 			nt = NodeType,
-			curline, 
 			token_type = token ? token.type : undefined,
 			token_value = token ? token.value : undefined,
 			opt_explicit = !!input.options.explicit,
@@ -526,9 +530,9 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			opt_sharpno = !!input.options.sharpno,
 			opt_forfunction = !!input.options.forfunction,
 			opt_filledbrace = !!input.options.filledbrace,
-			opt_notcolony = !!input.options.notcolony
+			opt_notcolony = !!input.options.notcolony,
+			opt_debug = !!input.options.debug
 		;
-		if (token) curline = token.line;
 		function acquire(){};
 		var moveNext = function () {
 			var t = token;
@@ -542,7 +546,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				token_type = token_value = undefined;
 			}
 			next = tokens[i + 1];
-			if (token) curline = token.line;
 			return t;
 		};
 		var newScope = function () {
@@ -563,14 +566,14 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			workingScopes.pop();
 			workingScope = workingScopes[workingScopes.length - 1];
 		}
-		var advance = function (type, test) {
+		var advance = function (type, test, errorMessage) {
 			var nt, value, t, node;
 			if (!token)
-				throw PE('Requires token type#' + type);
+				throw PE(errorMessage || 'Requires token type#' + type);
 			if (type !== undefined && token.type !== type)
-				throw PE('Unexpected token: got' + token);
+				throw PE(errorMessage || 'Unexpected token: got' + token);
 			if (test !== undefined && token.value !== test)
-				throw PE('Unexpected token: got' + token);
+				throw PE(errorMessage || 'Unexpected token: got' + token);
 			return moveNext();
 		};
 		var SQSTART = 91, SQEND = 93, RDSTART = 40, RDEND = 41, CRSTART = 123, CREND = 125;
@@ -585,11 +588,14 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			return tokens[i + n] && tokens[i + n].type === t && (v ? tokens[i + n].value === v : true);
 		}
 
+
+
+
 		// Here we go!
 
 		// Identifier: like the javascript
 		var variable = function () {
-			var t = advance(ID);
+			var t = advance(ID, undefined, "A variable is required here.");
 			workingScope.useVar(t.value, t.position);
 			return new Node(NodeType.VARIABLE, { name: t.value });
 		};
@@ -636,21 +642,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		var calleep = function () {
 			var t = advance(CALLEE);
 			return new Node(nt.CALLEE);
-		};
-
-		// object
-		var objinit = function () {
-			var arr = [], ams = [];
-			advance(STARTBRACE, CRSTART);
-			var node = new Node(nt.OBJECT);
-			if (tokenIs(ENDBRACE, CREND)) {
-				node.args = [];
-				advance();
-				return node
-			};
-			arglist(node);
-			advance(ENDBRACE, CREND);
-			return node;
 		};
 
 		// 'my' construct: "my" Identifier
@@ -794,6 +785,59 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			return n;
 		};
 
+		var arglist = function (nc, omit, tfinal, vfinal) {
+			var args = [], names = [], pivot, name, sname, nameused, unfinished;
+			do {
+				if (token && (token.isName || tokenIs(STRING)) && nextIs(COLON)) {
+					// named argument
+					// name : value
+					name = token.value, sname = true, nameused = true;
+					advance();
+					advance();
+				}
+				// callItem is the "most strict" expression.
+				// without omissioned calls and implicit calls.
+				// so you cannot write `f(1, 2, a:3)` like `f 1, 2, a:3`.
+				pivot = callItem(omit);
+				args.push(pivot);
+				if (sname) {
+					names[args.length - 1] = name;
+					sname = false;
+				}
+				if (!token || token.type !== COMMA) {
+					break
+				};
+				advance();
+				if(tfinal && tokenIs(tfinal, vfinal)) {
+					unfinished = true;
+					break;
+				}
+			} while (true);
+			ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
+			nc.args = (nc.args || []).concat(args);
+			nc.names = (nc.names || []).concat(names);
+			nc.nameused = nc.nameused || nameused;
+
+			ensure(!(nc.func && nc.func.type === nt.CTOR && nc.nameused), "Unable to use named arguments inside old-style Constructior5 invocation");
+			return unfinished
+		};
+
+		var itemlist = function (nc) {
+			var args = [], names = [], pivot, name, nameused;
+			if (!tokenIs(ENDBRACE, SQEND))
+				do {
+					pivot = callItem();
+					args.push(pivot);
+					if (!tokenIs(COMMA)) {
+						break
+					};
+					advance();
+				} while (true);
+
+			nc.args = args;
+			return nc;
+		};
+
 		var ISOBJLIT = function(){
 			if(
 					(next && next.isName && !(nextIs(TRY) || nextIs(WAIT)) || nextIs(STRING)) 
@@ -807,6 +851,27 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			}
 		};
 
+		// object
+		var objectLiteral = function () {
+			var arr = [], ams = [];
+			advance(STARTBRACE, CRSTART);
+			var node = new Node(nt.OBJECT);
+			if (tokenIs(ENDBRACE, CREND)) {
+				node.args = [];
+				advance();
+				return node
+			};
+			arglist(node);
+			advance(ENDBRACE, CREND);
+			return node;
+		};
+
+		var isLambdaPar = function () {
+			return (
+				nextIs(ENDBRACE, RDEND) && shiftIs(2, LAMBDA) ||
+				nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))
+			)
+		};
 		// Lambda Expression content
 		var lambdaCont = function (p) {
 			advance(LAMBDA);
@@ -821,11 +886,30 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				tree: s.id
 			});
 		};
-		var isLambdaPar = function () {
-			return (
-				nextIs(ENDBRACE, RDEND) && shiftIs(2, LAMBDA) ||
-				nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))
-			)
+
+		var letExpr = function(){
+			advance(STARTBRACE, RDSTART);
+			var vars = [], args = [];
+			do {
+				var nm = variable();
+				if(tokenIs(OPERATOR, "=")){
+					advance(OPERATOR);
+					var va = callItem()
+				} else {
+					var va = new Node(nt.VARIABLE, { name: nm.name });
+				};
+				vars.push(nm.name), args.push(va);
+				if(!tokenIs(COMMA)) break;
+					else advance();
+			} while(true);
+			var p = advance(ENDBRACE, RDEND);
+			var s = (tokenIs(STARTBRACE, nt.CRSTART) ? functionBody : colonBody)(new Node(nt.PARAMETER, {names: vars}));
+			if(scopes[s.tree - 1].oProto) throw PE("Unable to use obstructive primitives within LET statement", p.position);
+			return new Node(nt.CALL, {
+				func: s, 
+				args: args,
+				names: args.map(function(){ return null })
+			});
 		};
 		var primary = function () {
 			ensure(token, 'Unable to get operand: missing token');
@@ -845,7 +929,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				case STRING:
 					return literal();
 				case CONSTANT:
-
 				case TRY:
 				case THROW:
 					return constant();
@@ -859,10 +942,13 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					return argsp();
 				case OBJECT:
 					advance(OBJECT);
-					return objinit();
+					return objectLiteral();
 				case DO:
 					advance();
 					return new Node(nt.DO);
+				case LET:
+					advance();
+					return letExpr();
 				case STARTBRACE:
 					if (token.value === SQSTART) {
 						// array
@@ -885,7 +971,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					} else if (token.value === CRSTART) {
 						if(ISOBJLIT()){
 							// object literal
-							return objinit()
+							return objectLiteral()
 						}
 						// Raw function body
 						// with no arguments
@@ -1004,7 +1090,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 									unfinished = advance(ENDBRACE, RDEND)
 								} else if (tokenIs(STARTBRACE, CRSTART)){
 									if(ISOBJLIT()){
-										m.args.push(objinit());
+										m.args.push(objectLiteral());
 									} else {
 										m.args.push(functionBody());
 									};
@@ -1026,7 +1112,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 								names: [null]
 							});
 							if(ISOBJLIT()){
-								m.args.push(objinit());
+								m.args.push(objectLiteral());
 							} else {
 								m.args.push(functionBody());
 							}
@@ -1041,62 +1127,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				}
 			};
 			return m;
-		};
-		var arglist = function (nc, omit, tfinal, vfinal) {
-			var args = [], names = [], pivot, name, sname, nameused, unfinished;
-			do {
-				if (token && (token.isName || tokenIs(STRING)) && nextIs(COLON)) {
-					// named argument
-					// name : value
-					name = token.value, sname = true, nameused = true;
-					advance();
-					advance();
-				}
-				// callItem is the "most strict" expression.
-				// without omissioned calls and implicit calls.
-				// so you cannot write `f(1, 2, a:3)` like `f 1, 2, a:3`.
-				pivot = callItem(omit);
-				args.push(pivot);
-				if (sname) {
-					names[args.length - 1] = name;
-					sname = false;
-				}
-				if (!token || token.type !== COMMA) {
-					break
-				};
-				advance();
-				if(tfinal && tokenIs(tfinal, vfinal)) {
-					unfinished = true;
-					break;
-				}
-			} while (true);
-			ensure(!HAS_DUPL(names), 'Named argument list contains duplicate');
-			nc.args = (nc.args || []).concat(args);
-			nc.names = (nc.names || []).concat(names);
-			nc.nameused = nc.nameused || nameused;
-
-			ensure(!(nc.func && nc.func.type === nt.CTOR && nc.nameused), "Unable to use named arguments inside old-style Constructior5 invocation");
-			return unfinished
-		};
-
-		var itemlist = function (nc) {
-			var args = [], names = [], pivot, name, sname, nameused;
-			if (!tokenIs(ENDBRACE, SQEND))
-				do {
-					pivot = callItem();
-					args.push(pivot);
-					if (sname) {
-						names[args.length - 1] = name;
-						sname = false;
-					}
-					if (!token || token.type !== COMMA) {
-						break
-					};
-					advance();
-				} while (true);
-
-			nc.args = args;
-			return nc;
 		};
 
 		var unary = function () {
@@ -1358,10 +1388,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		var statement_r = function () {
 			if (token)
 				switch (token.type) {
-				case PASS:
-					advance();
-					ensure(stover(), "Unexceped PASS")
-					return;
 				case RETURN:
 					advance();
 					return ifaffix(new Node(nt.RETURN, { expression: expression() }));
@@ -1728,7 +1754,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			script.content.push(statement());
 
 			while (endS && token) {
-				curline = token.line;
 				endS = false;
 				stripSemicolons();
 				if (tokenIs(fin) || tokenIs(END) || tokenIs(ENDBRACE, CREND) || tokenIs(fin2)) break;
@@ -1771,7 +1796,8 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		return {
 			scopes: scopes,
 			options: input.options,
-			module: input.module
+			module: input.module,
+			debugQ: opt_debug
 		};
 	};
 

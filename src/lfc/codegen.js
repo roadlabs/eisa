@@ -13,7 +13,7 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 			return '$' + m.charCodeAt(0).toString(36) + '$'
 		});
 	};
-	var STRIZE = function(){
+	var STRIZE = exports.STRIZE = function(){
 		var CTRLCHR = function (c) {
 			var n = c.charCodeAt(0);
 			return '\\x' + (n > 15 ? n.toString(16) : '0' + n.toString(16));
@@ -25,6 +25,9 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 				.replace(/<\/(script)>/ig, '<\x2f$1\x3e') + '"';
 		};
 	}();
+	var M_STRIZE = function(s){
+		return JOIN_STMTS(s.split('\n').map(function(s){ return STRIZE("[LFC-DEBUG]: " + s)}))
+	}
 
 
 	var C_NAME = function (name) { return TO_ENCCD(name) + '_$' },
@@ -118,12 +121,31 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 		return l;
 	};
 
-	"Common Functions";
-	var compileFunctionBody = exports.compileFunction = function (tree, hook_enter, hook_exit, scopes) {
-		if (tree.transformed) return tree.transformed;
-		if (tree.oProto) return compileOProto(tree, hook_enter, hook_exit, scopes);
-		env = tree;
+	var walkedPosition;
+	var resetBuf;
+	var flushLines = function(){
+		var sp = 0; var ep = 0;
+		walkedPosition = function(p){
+			if(p > ep) ep = p
+		}
+		resetBuf = function(){ sp = ep = 0 }
+		return function(){
+			var r = "/*@LFC-DEBUG " + sp + "," + ep + "@*/" ;
+			sp = ep
+			return r;
+		}
+	}();
+
+	exports.init = function(scopes){
 		g_envs = scopes;
+		resetBuf();
+	}
+
+	"Common Functions";
+	var compileFunctionBody = exports.compileFunction = function (tree, hook_enter, hook_exit) {
+		if (tree.transformed) return tree.transformed;
+		if (tree.oProto) return compileOProto(tree, hook_enter, hook_exit);
+		env = tree;
 		var s;
 		s = transform(tree.code);
 		var locals = EISA_UNIQ(tree.locals),
@@ -162,11 +184,10 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 	};
 
 	"Obstructive Protos";
-	var compileOProto = function(tree, hook_enter, hook_exit, scopes){
+	var compileOProto = function(tree, hook_enter, hook_exit){
 		if(tree.transformed) return tree.transformed;
 		var backupenv = env;
 		env = tree;
-		g_envs = scopes;
 		
 		var s = transformOProto(tree);
 
@@ -228,12 +249,16 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 		schemata = function (tf, trans) {
 			vmSchemata[tf] = trans;
 		};
-	var transform = function (node, aux) {
+	var transform = function (node) {
+		var r;
 		if (vmSchemata[node.type]) {
-			return vmSchemata[node.type].call(node, node, env, g_envs, aux);
+			r = vmSchemata[node.type].call(node, node, env);
+
 		} else {
-			return '{!UNKNOWN}';
-		}
+			r = '{!UNKNOWN}';
+		};
+		if(node.position) walkedPosition(node.position);
+		return r;
 	};
 
 	"Transform Common functions", function(){
@@ -278,17 +303,17 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 			env.grDepth -= 1;
 			return r;
 		});
-		schemata(nt.THIS, function (nd, e, trees) {
+		schemata(nt.THIS, function (nd, e) {
 			var n = e;
 			n.thisOccurs = true;
 			return T_THIS(e);
 		});
-		schemata(nt.ARGN, function (nd, e, trees){
+		schemata(nt.ARGN, function (nd, e){
 			e.argnOccurs = true;
 			e.argsOccurs = true;
 			return T_ARGN();
 		});
-		schemata(nt.ARGUMENTS, function (n, e, trees) {
+		schemata(nt.ARGUMENTS, function (n, e) {
 			var s = e;
 			s.argsOccurs = true;
 			return T_ARGS();
@@ -321,7 +346,7 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 			return {hasNameQ: hasNameQ, displacement: names.join(','), args: args.join(', ')};
 		};
 
-		schemata(nt.CALL, function (node, env, trees) {
+		schemata(nt.CALL, function (node, env) {
 			var comp;
 			var skip = 0, skips = [], pipe;
 
@@ -473,7 +498,7 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 			return '(!(' + transform(this.operand) + '))';
 		});
 
-		schemata(nt.DO, function(nd, e, trees){
+		schemata(nt.DO, function(nd, e){
 			var s = e;
 			ScopedScript.useTemp(s, 'DOF');
 			s.thisOccurs = true;
@@ -481,9 +506,9 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 			return C_TEMP('DOF');
 		});
 
-		schemata(nt.FUNCTION, function (n, e, trees) {
-			var	f = trees[this.tree - 1];
-			var s = (f.oProto ? compileOProto : compileFunctionBody) (f, '', '', trees);
+		schemata(nt.FUNCTION, function (n, e) {
+			var	f = g_envs[this.tree - 1];
+			var s = (f.oProto ? compileOProto : compileFunctionBody) (f, '', '');
 			return s;
 		});
 
@@ -622,6 +647,7 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 			for (var i = 0; i < n.content.length; i++) {
 				if (n.content[i]){
 					a.push(transform(n.content[i]));
+					a.push(flushLines());
 				}
 			}
 			return JOIN_STMTS(a)
@@ -773,7 +799,7 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 		};
 
 
-		oSchemata(nt.CALL, function (node, env, trees) {
+		oSchemata(nt.CALL, function (node, env) {
 			if(this.func && this.func.type === nt.WAIT)
 				return awaitCall.apply(this, arguments);
 
@@ -1181,6 +1207,7 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 				if (n.content[i]){
 					gens = ct(n.content[i]);
 					if(gens) ps(gens);
+					ps(flushLines())
 				}
 			}
 		};

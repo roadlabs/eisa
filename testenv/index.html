@@ -41,6 +41,9 @@
 		#info ol li {
 			white-space: pre-wrap;
 		}
+		#info ol li em {
+			color: red
+		}
 		#output {
 			font-weight: bolder;
 			font-size: 14px;
@@ -156,6 +159,7 @@
 								.replace(/&/g, '&amp;')
 								.replace(/</g, '&lt;')
 								.replace(/>/g, '&gt;')
+								.replace(/^[ \t]*("\[LFC-DEBUG\]:.*$)/gm, function(s){ return '<em>' + eval(s) + '</em>'})
 								.replace(/^/gm, '<li>')
 								.replace(/$/gm, '</li>')
 								.replace(/\n/g, '') + '</ol>');

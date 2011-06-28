@@ -8,6 +8,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 	var OWNS = eisa.runtime.OWNS;
 	var C_TEMP = require('lfc/codegen').C_TEMP;
 	var PART = require('lfc/codegen').PART;
+	var STRIZE = require('lfc/codegen').STRIZE;
 	var lfcrt = require('lfc/compiler.rt');
 	var nt = lfcrt.NodeType;
 	var ScopedScript = lfcrt.ScopedScript;
@@ -16,10 +17,29 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 	var lex = exports.lex = require('lfc/parser').lex;
 	var parse = exports.parse = require('lfc/parser').parse;
 
+	var compileInit = require('lfc/codegen').init;
 	var compileFunction = require('lfc/codegen').compileFunction;
 
-	var compile = exports.compile = function (ast) {
-		
+	var compile = exports.compile = function (ast, source) {
+		var getSource = function(){
+			var a = source.split('\n');
+			var remap = [0];
+			a.forEach(function(s){
+				remap.push(remap[remap.length - 1] + s.length + 1)
+			});
+
+			var mins = 0
+
+			return function(s, t){
+				for(var i = mins; i < remap.length; i++) if(remap[i] > s)
+					for(var j = i; i < remap.length; j++) if(remap[j] > t) {
+						mins = j + 1;
+						return source.slice(remap[i - 1], remap[j]).replace(/\s+$/, '')
+					};
+				return ''
+			}
+		}()
+
 		var trees = ast.scopes;
 		var enter = trees[0];
 
@@ -31,7 +51,15 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 			return s;
 		}();
 
-		var generatedSource = compileFunction(enter, '', '', trees);
+		compileInit(trees);
+		var generatedSource = compileFunction(enter, '', '', trees, getSource);
+
+		if(ast.debugQ){
+			generatedSource = generatedSource.replace(/^\s*\/\*@LFC-DEBUG (\d+),(\d+)@\*\/.*$/gm, function(m, $1, $2){
+				return getSource($1 - 0, $2 - 0).split('\n').filter(function(s){ return !!s })
+					.map(function(s){ return STRIZE('[LFC-DEBUG]: ' + s) + ";" }).join('\n')
+			})
+		}
 
 		var finalSource = enterText + 'return ' + generatedSource;
 		var f = Function(C_TEMP('RUNTIME'), C_TEMP('INIT'), finalSource);
@@ -51,7 +79,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 
 			return callback({
 				compile: function() {
-					lfcr = compile(ast); 
+					lfcr = compile(ast, source); 
 					return lfcr;
 				},
 				start: function() {
