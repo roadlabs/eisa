@@ -17,8 +17,7 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 	var lex = exports.lex = require('lfc/parser').lex;
 	var parse = exports.parse = require('lfc/parser').parse;
 
-	var compileInit = require('lfc/codegen').init;
-	var compileFunction = require('lfc/codegen').compileFunction;
+	var Generator = require('lfc/codegen').Generator;
 
 	var compile = exports.compile = function (ast, source) {
 		var getSource = function(){
@@ -51,8 +50,8 @@ NECESSARIA_module.declare("lfc/compiler", ['eisa.rt', 'lfc/compiler.rt', 'lfc/pa
 			return s;
 		}();
 
-		compileInit(trees);
-		var generatedSource = compileFunction(enter, '', '', trees, getSource);
+		var generator = Generator(trees);
+		var generatedSource = generator(enter);
 
 		if(ast.debugQ){
 			generatedSource = generatedSource.replace(/^\s*\/\*@LFC-DEBUG (\d+),(\d+)@\*\/.*$/gm, function(m, $1, $2){

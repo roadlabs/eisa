@@ -6,7 +6,9 @@
 ~*
 *.lf.js
 doc/*.html
+doc/lib/*
 .vim/
 
 test/*
 build/*
+lfc/*
