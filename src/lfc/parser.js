@@ -838,7 +838,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			return nc;
 		};
 
-		var ISOBJLIT = function(){
+		var isObjectLiteral = function(){
 			if(
 					(next && next.isName && !(nextIs(TRY) || nextIs(WAIT)) || nextIs(STRING)) 
 					&& shiftIs(2, COLON) 
@@ -866,7 +866,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			return node;
 		};
 
-		var isLambdaPar = function () {
+		var isLambdaParameters = function () {
 			return (
 				nextIs(ENDBRACE, RDEND) && shiftIs(2, LAMBDA) ||
 				nextIs(ID) && (shiftIs(2, ENDBRACE, RDEND) && shiftIs(3, LAMBDA) || shiftIs(2, COMMA))
@@ -953,7 +953,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 					if (token.value === SQSTART) {
 						// array
 						return arrayLiteral();
-					} else if (token.value === RDSTART && isLambdaPar()) {
+					} else if (token.value === RDSTART && isLambdaParameters()) {
 						return lambdaCont(parameters());
 					} else if (token.value === RDSTART) {
 						// braced expression (expr)
@@ -969,7 +969,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 						// return new Node(nt.GROUP, {operand: n});
 						return n;
 					} else if (token.value === CRSTART) {
-						if(ISOBJLIT()){
+						if(isObjectLiteral()){
 							// object literal
 							return objectLiteral()
 						}
@@ -1089,7 +1089,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 									arglist(m, false, ENDBRACE, RDEND);
 									unfinished = advance(ENDBRACE, RDEND)
 								} else if (tokenIs(STARTBRACE, CRSTART)){
-									if(ISOBJLIT()){
+									if(isObjectLiteral()){
 										m.args.push(objectLiteral());
 									} else {
 										m.args.push(functionBody());
@@ -1111,7 +1111,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 								args:[],
 								names: [null]
 							});
-							if(ISOBJLIT()){
+							if(isObjectLiteral()){
 								m.args.push(objectLiteral());
 							} else {
 								m.args.push(functionBody());
