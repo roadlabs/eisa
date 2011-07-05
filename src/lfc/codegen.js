@@ -522,10 +522,10 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 				return 'throw ' + transform(this.expression);
 			});
 			schemata(nt.IF, function () {
-				return $('if (%1){%2}%3', 
+				return $('if (%1){%2} %3', 
 					transform(this.condition),
 					transform(this.thenPart),
-					this.elsePart ? transform(this.elsePart) : '');
+					this.elsePart ? "else {" + transform(this.elsePart) + "}" : '');
 			});
 			schemata(nt.PIECEWISE, function () {
 				var a = [], cond = '';
