@@ -500,6 +500,9 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 				var s = (f.oProto ? compileOProto : compileFunctionBody)(f);
 				return s;
 			});
+			schemata(nt.CONDITIONAL, function(){
+				return $("%1?%2:%3", transform(this.condition), transform(this.thenPart), transform(this.elsePart))
+			});
 
 
 
@@ -979,6 +982,19 @@ NECESSARIA_module.declare('lfc/codegen', ['eisa.rt', 'lfc/compiler.rt', 'lfc/par
 				ps(right + '= true');
 				(LABEL(lEnd));
 				return left + '||' + right;
+			});
+
+			oSchemata(nt.CONDITIONAL, function(){
+				var cond = expPart(this.condition);
+				var lElse = label();
+				ps('if(!(' + cond + '))' + GOTO(lElse));
+				var thenp = expPart(this.thenPart);
+				var lEnd = label();
+				ps(GOTO(lEnd));
+				LABEL(lElse);
+				var elsep = expPart(this.elsePart)
+				LABEL(lEnd);
+				return cond + '?' + thenp + ':' + elsep
 			});
 
 

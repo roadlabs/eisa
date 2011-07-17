@@ -137,6 +137,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 		'otherwise': OTHERWISE,
 		'then': THEN,
 		'var': VAR,
+//		'val': VAL,
 		'me': ME,
 		'this': ME,
 		'my': MY,
@@ -674,10 +675,9 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			workingScope.code = code = statements();
 			endScope();
 			checkBreakPosition(code);
+			implicitReturn(code, s);
 			if(s.oProto)
 				generateObstructiveness(code);
-			else
-				implicitReturn(code, s);
 			advance(ENDBRACE, 125);
 			return new Node(nt.FUNCTION, { tree: s.id });
 		};
@@ -740,8 +740,6 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			} else if (p && tokenIs(COLON)) {
 				f = colonBody(p)
 			} else if (p && acceptAssignQ && tokenIs(OPERATOR, '=')) {
-				if(opt_colononly)
-					throw PE('Only COLON bodies can be used due to `-!option colononly`');
 				f = expressionalBody(p);
 			} else {
 				f = functionBody(p);
@@ -1352,6 +1350,21 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 			
 			c.pipelike = false;
 
+			if(tokenIs(IF)){
+				advance(); advance(STARTBRACE, RDSTART);
+				c = new Node(nt.CONDITIONAL, {
+					thenPart: c
+				});
+				c.condition = expression();
+				advance(ENDBRACE, RDEND);
+				if(tokenIs(COMMA)){
+					advance();
+					c.elsePart = expression()
+				} else {
+					c.elsePart = new Node(nt.LITERAL, {value: {map: undefined}});
+				}
+			};
+
 			return c;
 		};
 		var callItem = function(omit){
@@ -1390,7 +1403,7 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				switch (token.type) {
 				case RETURN:
 					advance();
-					return ifaffix(new Node(nt.RETURN, { expression: expression() }));
+					return new Node(nt.RETURN, { expression: expression() });
 				case IF:
 					return ifstmt();
 				case WHILE:
@@ -1423,10 +1436,10 @@ NECESSARIA_module.declare("lfc/parser", ['eisa.rt', 'lfc/compiler.rt'], function
 				case OPERATOR:
 					if (token.value === '=') {
 						advance();
-						return ifaffix(new Node(nt.RETURN, { expression: expression() }));
+						return new Node(nt.RETURN, { expression: expression() });
 					}
 				default:
-					return ifaffix(new Node(nt.EXPRSTMT, {expression: expression(), exprStmtQ : true}));
+					return new Node(nt.EXPRSTMT, {expression: expression(), exprStmtQ : true});
 			};
 		};
 		var blocky = function(node){
